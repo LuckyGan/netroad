@@ -39,4 +39,5 @@ sudo apt-get install -y \
 sudo pip install cxxfilt
 
 sudo apt-get install -y \
-	libncurses-dev libssl-dev libfs-dev libdb-dev libpcap-dev
+	libncurses-dev libssl-dev libfs-dev libdb-dev \
+	libpcap-dev libsysfs-dev

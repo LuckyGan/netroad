@@ -1,6 +1,10 @@
 *.pcap
 files-*
 bake
-buildtop
 core
 exitprocs
+
+!buildtop/
+
+buildtop/*
+!buildtop/source
