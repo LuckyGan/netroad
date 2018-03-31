@@ -5,6 +5,110 @@ This file contains Direct Code Execution release notes (most recent releases fir
 
 Please refer the page http://www.nsnam.org/projects/direct-code-execution/ for detailed instructions
 
+Release dce-dev
+===============
+This release is not yet available.
+
+Availability
+------------
+
+Tested platforms
+-------------------
+- Ubuntu 12.04 32bit/64bit
+- Ubuntu 13.04 64bit
+- Ubuntu 14.04 64bit
+- Ubuntu 15.04 64bit (new)
+- Fedora 18 32bit
+- CentOS 6.2 64bit
+
+New user-visible features
+-------------------------
+
+Bugs fixed
+----------
+-
+
+
+Release dce-1.7
+===============
+Availability
+------------
+In order to use DCE, please use bake tool to install DCE.
+The followings are the basic steps to use DCE.
+
+ % bake.py configure -e dce-ns3-1.7
+   or
+ % bake.py configure -e dce-linux-1.7
+ % bake.py download
+ % bake.py build
+
+For more information, please refer the document.
+
+Availability
+------------
+
+Tested platforms
+-------------------
+- Ubuntu 12.04 32bit/64bit
+- Ubuntu 13.04 64bit
+- Ubuntu 14.04 64bit
+- Ubuntu 15.04 64bit (new)
+- Fedora 18 32bit
+- CentOS 6.2 64bit
+
+New user-visible features
+-------------------------
+- dlopen(3), dlsym(3) support, this is useful for newer iproute2
+- Added an overload DceManagerHelper::Install(Ptr<Node>)
+
+Bugs fixed
+----------
+- Bug 2080 - MPTCP - FullMesh: queue_delayed_work is only successful on the first
+- Bug 2085 - DCE build process crashes when using compiler flag for C++0x / C++11
+- Bug 1980 - setting UnixSocketFd socket buffer size
+- Bug 2129 - DCE-Linux simulations with heterogeneous nodes crash (some DCE-Linux and some ns3)
+- Bug 2101 - When loading binary not compiled with the correct options, dce crashes
+- Bug 2160 - Waf Fails to recognize pygccxml version 1.6.2
+- github PR#6 fix routing in dce-iperf-mptcp example
+
+
+Release dce-1.6
+===============
+Availability
+------------
+In order to use DCE, please use bake tool to install DCE.
+The followings are the basic steps to use DCE.
+
+ % bake.py configure -e dce-ns3-1.6
+   or
+ % bake.py configure -e dce-linux-1.6
+ % bake.py download
+ % bake.py build
+
+For more information, please refer the document.
+
+
+Availability
+------------
+
+Tested platforms
+-------------------
+- Ubuntu 10.04 64bit
+- Ubuntu 12.04 32bit/64bit
+- Ubuntu 13.04 64bit
+- Ubuntu 14.04 64bit
+- Fedora 18 32bit
+- CentOS 6.2 64bit
+
+New user-visible features
+-------------------------
+- adapt new SimExported API for net-next-sim
+
+Bugs fixed
+----------
+- Bug 2051 - DCE submodules (dce-quagga, dce-umip, etc) are not linked to scripts under myscripts
+
+
 Release dce-1.5
 ===============
 
