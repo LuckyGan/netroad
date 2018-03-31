@@ -43,6 +43,23 @@ class MgtAddBaRequestHeader;
 class StaWifiMac : public RegularWifiMac
 {
 public:
+
+  enum MacScanType
+  {
+    NOTSUPPORT,
+    ACTIVE,
+    PASSIVE
+  };
+
+  struct ScanningEntry
+  {
+    uint16_t channelNumber;
+    Ssid ssid;
+    Mac48Address bssid;
+    double rxSnr;
+  };
+  typedef Callback<void, std::vector<ScanningEntry> const & > ScanningCallback;
+
   static TypeId GetTypeId (void);
 
   StaWifiMac ();
@@ -57,7 +74,10 @@ public:
    * access is granted to this MAC.
    */
   virtual void Enqueue (Ptr<const Packet> packet, Mac48Address to);
-
+  /**
+   * \param phy the physical layer attached to this MAC.
+   */
+  virtual void SetWifiPhy (Ptr<WifiPhy> phy);
   /**
    * \param missed the number of beacons which must be missed
    * before a new association sequence is started.
@@ -83,6 +103,23 @@ public:
    */
   void StartActiveAssociation (void);
 
+  /**
+   * \param duration switching delay duration.
+   *
+   * This method is typically invoked by the PhyMacLowListener to notify
+   * the MAC layer that a channel switching occured. When a channel switching
+   * occurs, pending MAC transmissions (RTS, CTS, DATA and ACK) are cancelled.
+   */
+  void NotifySwitchingStartNow (Time duration);
+  /**
+   * This method is typically invoked by the PhyMacLowListener to notify
+   * the MAC layer that CCA(Clear Channel Assessment) becomes busy
+   */
+  void NotifyCcaBusyOccurred ();
+
+protected:
+  virtual void DoDispose ();
+
 private:
   /**
    * The current MAC state of the STA.
@@ -93,7 +130,8 @@ private:
     WAIT_PROBE_RESP,
     WAIT_ASSOC_RESP,
     BEACON_MISSED,
-    REFUSED
+    REFUSED,
+    SCANNING
   };
 
   /**
@@ -178,6 +216,15 @@ private:
    */
   HtCapabilities GetHtCapabilities (void) const;
 
+  void SetupStaMacListener (Ptr<WifiPhy> phy);
+  bool IsSupportScanning (void) const;
+  void ScanningStart (void);
+  void ScanningEnd (void);
+  void ScanningSwitchChannelStart (void);
+  void ScanningSwitchChannelEnd (void);
+  void ScanningMinChannelTimeout (void);
+  virtual void SnrReceive (Ptr<Packet> packet, const WifiMacHeader *hdr, double rxSnr);
+  void RunScanOrProbe (void);
 
   enum MacState m_state;
   Time m_probeRequestTimeout;
@@ -188,6 +235,17 @@ private:
   Time m_beaconWatchdogEnd;
   uint32_t m_maxMissedBeacons;
   bool m_activeProbing;
+
+  class PhyStaMacListener * m_phyStaMacListener;
+  MacScanType m_scanType;
+  Time m_maxChannelTime;
+  Time m_minChannelTime;
+  uint16_t m_maxChannelNumber;
+  uint16_t m_scanChannelNumber;
+  bool m_bCcaBusyOccurred;
+  std::vector<ScanningEntry> m_scanResults;
+  EventId m_scanChannelEvent;
+  ScanningEntry* m_bestAP;
 
   TracedCallback<Mac48Address> m_assocLogger;
   TracedCallback<Mac48Address> m_deAssocLogger;

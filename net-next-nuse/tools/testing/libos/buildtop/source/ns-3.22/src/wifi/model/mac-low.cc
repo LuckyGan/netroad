@@ -350,6 +350,7 @@ MacLow::MacLow ()
     m_mpduAggregator (0),
     m_currentPacket (0),
     m_listener (0),
+    m_enableSnr (false),
     m_phyMacLowListener (0),
     m_ctsToSelfSupported (false),
     m_receivedAtLeastOneMpdu (false)
@@ -639,6 +640,11 @@ void
 MacLow::SetRxCallback (Callback<void,Ptr<Packet>,const WifiMacHeader *> callback)
 {
   m_rxCallback = callback;
+}
+void
+MacLow::SetSnrRxCallback (Callback<void,Ptr<Packet>,const WifiMacHeader *,  double> callback)
+{
+  m_rxSnrCallback = callback;
 }
 void
 MacLow::RegisterDcfListener (MacLowDcfListener *listener)
@@ -1102,8 +1108,16 @@ MacLow::ReceiveOk (Ptr<Packet> packet, double rxSnr, WifiMode txMode, WifiPreamb
 rxPacket:
   WifiMacTrailer fcs;
   packet->RemoveTrailer (fcs);
-  m_rxCallback (packet, &hdr);
-  return;
+   if (m_enableSnr)
+     {
+       NS_LOG_DEBUG ("enable snr receive " << m_enableSnr << rxSnr);
+       m_rxSnrCallback (packet, &hdr, rxSnr);
+     }
+   else
+     {
+       m_rxCallback (packet, &hdr);
+     }
+   return;
 }
 
 uint8_t
@@ -2811,6 +2825,12 @@ MacLow::FlushAggregateQueue (void)
 {
   NS_LOG_DEBUG("Flush aggregate queue");
   m_aggregateQueue->Flush ();
+}
+
+void
+MacLow::EnableForwardSnr (bool enable)
+{
+  m_enableSnr = enable;
 }
 
 } // namespace ns3
