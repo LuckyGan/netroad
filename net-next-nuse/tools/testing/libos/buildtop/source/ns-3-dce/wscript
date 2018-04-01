@@ -401,7 +401,7 @@ def build_dce_kernel_examples(module, bld):
 
     module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
                        target='bin/netroad-mptcp',
-                       source=['example/netroad-mptcp.cc'])
+                       source=['example/netroad-mptcp.cc', 'example/netroad-util.cc'])
 
     module.add_example(needed = ['core', 'internet', 'dce', 'point-to-point'],
                        target='bin/dce-udp-perf',

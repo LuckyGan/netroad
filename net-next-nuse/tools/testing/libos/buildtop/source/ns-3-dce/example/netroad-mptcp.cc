@@ -8,6 +8,8 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/wifi-module.h"
 
+#include "netroad-util.h"
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("NetroadMptcp");
@@ -84,6 +86,7 @@ main(int argc, char* argv[])
 
 	LogComponentEnable("NetroadMptcp", LOG_LEVEL_ALL);
 
+
 	std::string cmdCP = "cp " + file + " files-0/mytest.mp4";
 
 	int ret = system (cmdCP.c_str());
@@ -151,10 +154,9 @@ main(int argc, char* argv[])
 	DceManagerHelper dceManager;
 	dceManager.SetTaskManagerAttribute ("FiberManagerType",
 																			 StringValue("UcontextFiberManager"));
+
 	dceManager.SetNetworkStack ("ns3::LinuxSocketFdFactory",
-															"Library", StringValue("liblinux.so"));
-														  dceManager.SetNetworkStack ("ns3::LinuxSocketFdFactory",
-														                              "Library", StringValue ("liblinux.so"));
+															"Library", StringValue ("liblinux.so"));
 	dceManager.Install(srvNodes);
 	dceManager.Install(swNodes);
 	dceManager.Install(apNodes);
@@ -214,9 +216,7 @@ main(int argc, char* argv[])
 									"ActiveProbing", BooleanValue(true));
 	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
 
-	oss.str("");
-	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/0/$ns3::WifiNetDevice/Mac/$ns3::StaWifiMac/Assoc";
-	Config::ConnectWithoutContext(oss.str().c_str(), MakeCallback(&If1Assoc));
+	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
 
 	oss.str("");
 	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferRx";
@@ -229,9 +229,7 @@ main(int argc, char* argv[])
 									"ActiveProbing", BooleanValue(true));
 	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
 
-	oss.str("");
-	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/1/$ns3::WifiNetDevice/Mac/$ns3::StaWifiMac/Assoc";
-	Config::ConnectWithoutContext(oss.str().c_str(), MakeCallback(&If2Assoc));
+	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
 
 	oss.str("");
 	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/1/$ns3::WifiNetDevice/Phy/MonitorSnifferRx";
