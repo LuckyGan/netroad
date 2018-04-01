@@ -1,3 +1,0 @@
-.. code-block::
-     :language: text
-     :source-file: ./output.txt
