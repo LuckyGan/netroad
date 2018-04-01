@@ -897,7 +897,7 @@ else
 	    fi
 	    rm -f conftest
     fi
-    rm conftest.c
+    rm -f conftests.c
 fi
 
 echo "$ac_t""$ac_cv_lbl_static_flag" 1>&6

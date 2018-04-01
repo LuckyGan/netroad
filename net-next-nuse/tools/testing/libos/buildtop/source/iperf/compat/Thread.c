@@ -409,6 +409,7 @@ void thread_rest ( void ) {
     SwitchToThread( );
 #endif
 #endif
+    sleep (1);
 }
 
 #ifdef __cplusplus

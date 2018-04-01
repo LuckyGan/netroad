@@ -15,7 +15,7 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 60 \
 sudo apt-get install -y \
 	python python-dev python-pip \
 	mercurial python-setuptools git \
-	qt5-default \
+	qt4-default \
 	python-pygraphviz python-kiwi python-pygoocanvas \
 	libgoocanvas-dev ipython \
 	openmpi-bin openmpi-common openmpi-doc libopenmpi-dev \
@@ -40,4 +40,4 @@ sudo pip install cxxfilt
 
 sudo apt-get install -y \
 	libncurses-dev libssl-dev libfs-dev libdb-dev \
-	libpcap-dev libsysfs-dev
+	libpcap-dev libsysfs-dev gccxml
