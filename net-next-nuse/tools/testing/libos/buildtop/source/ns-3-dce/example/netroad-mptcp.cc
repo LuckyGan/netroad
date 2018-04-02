@@ -1,8 +1,5 @@
 #include "ns3/applications-module.h"
-#include "ns3/core-module.h"
-#include "ns3/dce-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/mobility-module.h"
+
 #include "ns3/netanim-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -14,17 +11,6 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("NetroadMptcp");
 
-struct APInfo
-{
-	Mac48Address m_mac;
-	Ipv4Address m_gw;
-	Ipv4Address m_ip;
-	Ipv4Address m_net;
-
-	APInfo (Mac48Address mac, Ipv4Address gw, Ipv4Address ip, Ipv4Address net)
-	:m_mac(mac), m_gw(gw), m_ip(ip), m_net(net){}
-};
-
 NodeContainer staNodes;
 NetDeviceContainer sta2apDevs;
 std::vector<struct APInfo> aps;
@@ -35,47 +21,18 @@ Ssid ssidH = Ssid("NETROAD-H");
 
 ApplicationContainer apps;
 
-static void
-If1Assoc (Mac48Address address);
+static void If1Assoc (Mac48Address address);
+static void If2Assoc (Mac48Address address);
 
-static void
-If2Assoc (Mac48Address address);
-
-static void
-SetPosition(Ptr<Node> node, const Vector& position);
-
-static void
-SetPositionVelocity(Ptr<Node> node, const Vector& position, const Vector& velocity);
-
-static std::pair<Ptr<Ipv4>, uint32_t>
-SetIpv4Address(Ptr<NetDevice> device, const char* address, const char* mask);
-
-static void
-AddIpv4Address (Ptr<Node> node, Ipv4Address ip, std::string iface);
-
-static void
-SetRuleRoute(Ptr<Node> node, std::string iface, std::string table,
-	Ipv4Address ip, Ipv4Address net, Ipv4Address gw);
-
-static void
-SetGlobalRoute(Ptr<Node> node, Ipv4Address gw, std::string iface);
-
-static void
-ShowRuleRoute(Ptr<Node> node);
-
-static void
-If1MonitorSnifferRx	(Ptr<const Packet> packet,
+static void If1MonitorSnifferRx	(Ptr<const Packet> packet,
 	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
 
-static void
-If2MonitorSnifferRx	(Ptr<const Packet> packet,
+static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
 	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
 
-int
-main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
 	uint32_t nApsV = 2;
 	uint32_t nApsH = 2;
 
@@ -85,6 +42,7 @@ main(int argc, char* argv[])
 	cmd.Parse(argc, argv);
 
 	LogComponentEnable("NetroadMptcp", LOG_LEVEL_ALL);
+	LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 
 
 	std::string cmdCP = "cp " + file + " files-0/mytest.mp4";
@@ -217,10 +175,7 @@ main(int argc, char* argv[])
 	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
-
-	oss.str("");
-	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/0/$ns3::WifiNetDevice/Phy/MonitorSnifferRx";
-	// Config::ConnectWithoutContext(oss.str().c_str(), MakeCallback(&If1MonitorSnifferRx));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
 
 	wifiMac.SetType("ns3::StaWifiMac",
 									"Ssid", SsidValue (ssidH),
@@ -230,80 +185,45 @@ main(int argc, char* argv[])
 	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
 
 	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
-
-	oss.str("");
-	oss << "/NodeList/" << staNodes.Get(0)->GetId () << "/DeviceList/1/$ns3::WifiNetDevice/Phy/MonitorSnifferRx";
-	// Config::ConnectWithoutContext(oss.str().c_str(), MakeCallback(&If2MonitorSnifferRx));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
 
 	wifiPhy.EnablePcapAll("netroad-mptcp-wifi", false);
 
 	NS_LOG_INFO ("assign ip");
 
-	Ipv4InterfaceContainer srv2swIfaces, sw2srvIfaces, sw2apIfaces, ap2swIfaces, ap2staIfaces, sta2apIfaces;
+	SetIpv4Address(srv2swDevs.Get(0), "10.1.1.1", "/24");
+	SetIpv4Address(sw2srvDevs.Get(0), "10.1.1.2", "/24");
 
-	srv2swIfaces.Add(SetIpv4Address(srv2swDevs.Get(0), "10.1.1.1", "/24"));
-	sw2srvIfaces.Add(SetIpv4Address(sw2srvDevs.Get(0), "10.1.1.2", "/24"));
+	for(uint32_t i = 0; i < nApsV + nApsH; i++)	{
+		SetIpv4Address(sw2apDevs.Get(i), BuildIpv4Address(10, 1, i+2, 1), Ipv4Mask("/24"));
+		SetIpv4Address(ap2swDevs.Get(i), BuildIpv4Address(10, 1, i+2, 2), Ipv4Mask("/24"));
 
-	for(uint32_t i = 0; i < nApsV + nApsH; i++)
-	{
-		oss.str("");
-		oss << "10.1." << (i+2) << ".1";
-		sw2apIfaces.Add(SetIpv4Address(sw2apDevs.Get(i), oss.str().c_str(), "/24"));
+		SetIpv4Address(ap2staDevs.Get(i), BuildIpv4Address(192, 168, i+1, 1), Ipv4Mask("/24"));
 
-		oss.str("");
-		oss << "10.1." << (i+2) << ".2";
-		ap2swIfaces.Add(SetIpv4Address(ap2swDevs.Get(i), oss.str().c_str(), "/24"));
 
-		oss.str("");
-		oss << "192.168." << (i+1) << ".1";
-		ap2staIfaces.Add(SetIpv4Address(ap2staDevs.Get(i), oss.str().c_str(), "/24"));
-
-		Ipv4Address gw = Ipv4Address (oss.str().c_str());
-
-		oss.str("");
-		oss << "192.168." << (i+1) << ".2";
-		Ipv4Address ip = Ipv4Address (oss.str().c_str());
+		Ipv4Address gw = BuildIpv4Address(192, 168, i+1, 1);
+		Ipv4Address ip = BuildIpv4Address(192, 168, i+1, 2);
 		Ipv4Address net = ip.CombineMask(Ipv4Mask("/24"));
 
 		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(ap2staDevs.Get(i));
 		aps.push_back(APInfo(wifiDev->GetMac()->GetAddress(), gw, ip, net));
 	}
 
-	Ptr<WifiNetDevice> wifiDev1 = DynamicCast<WifiNetDevice>(sta2apDevs.Get(0));
-	NS_LOG_INFO (wifiDev1->GetMac()->GetAddress());
-
-	Ptr<WifiNetDevice> wifiDev2 = DynamicCast<WifiNetDevice>(sta2apDevs.Get(1));
-	NS_LOG_INFO (wifiDev2->GetMac()->GetAddress());
-
 	NS_LOG_INFO ("routing");
 
 	oss.str("");
-	oss << "route add default via " << sw2srvIfaces.GetAddress(0) << " dev sim0";
+	oss << "route add default via " << GetIpv4Address (sw2srvDevs.Get(0)) << " dev sim0";
 	LinuxStackHelper::RunIp (srvNodes.Get(0), Seconds(0.1), oss.str());
 	NS_LOG_INFO ("srv: " << oss.str().c_str());
 
-	oss.str("");
-	oss << "route add 10.1.1.0/24 via 10.1.1.2 dev sim0";
-	LinuxStackHelper::RunIp (swNodes.Get(0), Seconds(0.1), oss.str());
-	NS_LOG_INFO ("sw: " << oss.str().c_str());
+	RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0),Ipv4Address("10.1.1.0"), Ipv4Address("10.1.1.2"), 0);
 
 	for(uint32_t i = 0; i < nApsV + nApsH; i ++){
-		oss.str("");
-		oss << "route add 192.168." << (i+1) << ".0/24 via " << ap2swIfaces.GetAddress(i) << " dev sim" << (i+1);
-		// oss << "route add 192.168." << (i+1) << ".0/24 via " << sw2apIfaces.GetAddress(i) << " dev sim" << (i+1);
-		LinuxStackHelper::RunIp (swNodes.Get(0), Seconds(0.1), oss.str());
-		NS_LOG_INFO ("sw: " << oss.str().c_str());
-
-		oss.str ("");
-		oss << "route add 10.1.1.0/24 via " << sw2apIfaces.GetAddress(i) << " dev sim0";
-		// oss << "route add 10.1.1.0/24 via " << ap2swIfaces.GetAddress(i) << " dev sim0";
-		LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(0.1), oss.str());
-		NS_LOG_INFO ("ap: " << oss.str().c_str());
+		RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0), BuildIpv4Address(192, 168, i+1, 0), GetIpv4Address (ap2swDevs.Get(i)), i+1);
+		RouteAddWithNetworkGatewayIfIndex(apNodes.Get(i), Ipv4Address("10.1.1.0"), GetIpv4Address (sw2apDevs.Get(i)), 0);
 
 		LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
 	}
-
-
 
 	DceApplicationHelper dce;
 	dce.SetStackSize (1 << 30);
@@ -345,8 +265,6 @@ main(int argc, char* argv[])
 	apps.Start (Seconds (5.0));
 	apps.Stop (Seconds (200));
 
-
-
 	NS_LOG_INFO ("animation");
 
 	AnimationInterface anim("netroad-mptcp.xml");
@@ -370,9 +288,9 @@ If1Assoc (Mac48Address address)
 		if(aps[i].m_mac != address)
 			continue;
 
-		AddIpv4Address(staNodes.Get(0), aps[i].m_ip, "sim0");
-		SetRuleRoute(staNodes.Get(0), "sim0", "1", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
-		SetGlobalRoute(staNodes.Get(0), aps[i].m_gw, "sim0");
+		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim0");
+		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "1", "sim0", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
+		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim0");
 		ShowRuleRoute (staNodes.Get(0));
 
 		ap1 = aps[i];
@@ -391,109 +309,14 @@ If2Assoc (Mac48Address address)
 		if(aps[i].m_mac != address)
 			continue;
 
-		AddIpv4Address(staNodes.Get(0), aps[i].m_ip, "sim1");
-		SetRuleRoute(staNodes.Get(0), "sim1", "2", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
-		SetGlobalRoute(staNodes.Get(0), aps[i].m_gw, "sim1");
+		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim1");
+		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "2", "sim1", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
+		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim1");
 		ShowRuleRoute(staNodes.Get(0));
 
 		ap2 = aps[i];
 		break;
 	}
-}
-
-static void
-SetPosition(Ptr<Node> node, const Vector& position)
-{
-	Ptr<MobilityModel> m = node->GetObject<MobilityModel>();
-	m->SetPosition(position);
-}
-
-static void
-SetPositionVelocity(Ptr<Node> node, const Vector& position, const Vector& velocity)
-{
-	Ptr<ConstantVelocityMobilityModel> m = node->GetObject<ConstantVelocityMobilityModel>();
-	m->SetPosition(position);
-	m->SetVelocity(velocity);
-}
-
-static std::pair<Ptr<Ipv4>, uint32_t>
-SetIpv4Address(Ptr<NetDevice> device, const char* address, const char* mask) {
-	Ptr<Node> node = device->GetNode ();
-	Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
-	int32_t interface = ipv4->GetInterfaceForDevice (device);
-
-	if(interface == -1)
-	{
-		interface = ipv4->AddInterface (device);
-	}
-
-	ipv4->AddAddress(interface, Ipv4InterfaceAddress(Ipv4Address(address), Ipv4Mask(mask)));
-	ipv4->SetMetric(interface, 1);
-	ipv4->SetForwarding(interface, true);
-	ipv4->SetUp(interface);
-
-	return std::pair<Ptr<Ipv4>, uint32_t>(ipv4, interface);
-}
-
-static void
-AddIpv4Address (Ptr<Node> node, Ipv4Address ip, std::string iface)
-{
-	std::ostringstream oss;
-
-	oss.str("");
-	oss << "-f inet addr add " << ip << "/24 dev " << iface;
-	LinuxStackHelper::RunIp (staNodes.Get (0), Seconds(0), oss.str());
-
-	oss.str("");
-	oss << "link set " << iface << " up arp on";
-	LinuxStackHelper::RunIp (staNodes.Get (0), Seconds(0), oss.str());
-}
-
-static void
-SetRuleRoute(Ptr<Node> node, std::string iface, std::string table,
-	Ipv4Address ip, Ipv4Address net, Ipv4Address gw)
-	{
-		std::ostringstream oss;
-
-		oss.str("");
-		oss << "rule del lookup " << table;
-		LinuxStackHelper::RunIp (staNodes.Get(0), Seconds(0), oss.str());
-
-		oss.str("");
-		oss << "route flush table " << table;
-		LinuxStackHelper::RunIp (staNodes.Get(0), Seconds(0), oss.str());
-
-		oss.str ("");
-		oss << "rule add from " << ip << " table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
-
-		oss.str ("");
-		oss << "route add " << net << "/24 dev " << iface << " scope link table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
-
-		oss.str ("");
-		oss << "route add default via " << gw << " dev " << iface <<" table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
-	}
-
-static void
-SetGlobalRoute(Ptr<Node> node, Ipv4Address gw, std::string iface)
-{
-	LinuxStackHelper::RunIp (staNodes.Get(0), Seconds(0), "route del default");
-
-	std::ostringstream oss;
-	oss << "route add default scope global nexthop via "<< gw <<" dev " << iface;
-	LinuxStackHelper::RunIp (staNodes.Get(0), Seconds(0), oss.str());
-	NS_LOG_INFO (oss.str());
-}
-
-static void
-ShowRuleRoute(Ptr<Node> node)
-{
-	LinuxStackHelper::RunIp (node, Seconds(0.1), "rule show");
-	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show");
-	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 1");
-	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 2");
 }
 
 static void
