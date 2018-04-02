@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
 	uint32_t nApsV = 2;
 	uint32_t nApsH = 2;
 
-	std::string file = "test.mp4";
+	// std::string file = "test.mp4";
 
 	CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -44,10 +44,10 @@ int main(int argc, char* argv[]) {
 	LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 
 
-	std::string cmdCP = "cp " + file + " files-0/mytest.mp4";
+	// std::string cmdCP = "cp " + file + " files-0/mytest.mp4";
 
-	int ret = system (cmdCP.c_str());
-	chmod ("files-0/mytest.mp4", 0744);
+	// int ret = system (cmdCP.c_str());
+	// chmod ("files-0/mytest.mp4", 0744);
 
 	NS_LOG_INFO ("create nodes");
 
@@ -213,38 +213,38 @@ int main(int argc, char* argv[]) {
 	DceApplicationHelper dce;
 	dce.SetStackSize (1 << 30);
 
-	// dce.SetBinary ("iperf");
-	// dce.ResetArguments ();
-	// dce.ResetEnvironment ();
-	// dce.AddArgument ("-s");
-	// dce.AddArgument ("-P");
-	// dce.AddArgument ("1");
+	dce.SetBinary ("iperf");
+	dce.ResetArguments ();
+	dce.ResetEnvironment ();
+	dce.AddArgument ("-s");
+	dce.AddArgument ("-P");
+	dce.AddArgument ("1");
 
-	dce.SetBinary ("thttpd");
-  dce.ResetArguments ();
-  dce.ResetEnvironment ();
-  //  dce.AddArgument ("-D");
-  dce.SetUid (1);
-  dce.SetEuid (1);
+	// dce.SetBinary ("thttpd");
+  // dce.ResetArguments ();
+  // dce.ResetEnvironment ();
+  // //  dce.AddArgument ("-D");
+  // dce.SetUid (1);
+  // dce.SetEuid (1);
 
 	apps = dce.Install (srvNodes.Get (0));
 	apps.Start (Seconds (1.0));
 
-	// dce.SetBinary ("iperf");
-	// dce.ResetArguments ();
-	// dce.ResetEnvironment ();
-	// dce.AddArgument ("-c");
-	// dce.AddArgument ("10.1.1.1");
-	// dce.AddArgument ("-i");
-	// dce.AddArgument ("0.5");
-	// dce.AddArgument ("--time");
-	// dce.AddArgument ("100");
+	dce.SetBinary ("iperf");
+	dce.ResetArguments ();
+	dce.ResetEnvironment ();
+	dce.AddArgument ("-c");
+	dce.AddArgument ("10.1.1.1");
+	dce.AddArgument ("-i");
+	dce.AddArgument ("0.5");
+	dce.AddArgument ("--time");
+	dce.AddArgument ("100");
 
-	dce.SetBinary ("wget");
-  dce.ResetArguments ();
-  dce.ResetEnvironment ();
-  // dce.AddArgument ("-r");
-  dce.AddArgument ("http://10.1.1.1:80/mytest.mp4");
+	// dce.SetBinary ("wget");
+  // dce.ResetArguments ();
+  // dce.ResetEnvironment ();
+  // // dce.AddArgument ("-r");
+  // dce.AddArgument ("http://10.1.1.1:80/mytest.mp4");
 
 	apps = dce.Install (staNodes.Get (0));
 	apps.Start (Seconds (5.0));

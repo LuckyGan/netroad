@@ -1,0 +1,334 @@
+#include "ns3/applications-module.h"
+#include "ns3/netanim-module.h"
+#include "ns3/network-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/wifi-module.h"
+
+#include "netroad-util.h"
+
+using namespace ns3;
+
+NS_LOG_COMPONENT_DEFINE("NETROAD_HANDOFF");
+
+std::vector<struct APInfo> aps;
+struct APInfo ap1 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
+struct APInfo ap2 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
+ApplicationContainer apps;
+NodeContainer staNodes;
+NetDeviceContainer sta2apDevs;
+
+static void If1Assoc (Mac48Address address);
+static void If2Assoc (Mac48Address address);
+static void If1MonitorSnifferRx	(Ptr<const Packet> packet,
+	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
+	bool isShortPreamble, double signalDbm, double noiseDbm);
+
+static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
+	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
+	bool isShortPreamble, double signalDbm, double noiseDbm);
+
+	void
+	PrintTcpFlags (std::string key, std::string value)
+	{
+	  NS_LOG_INFO (key << "=" << value);
+	}
+
+int main(int argc, char* argv[]){
+  uint32_t nAPs = 4;
+
+  CommandLine cmd;
+	cmd.Parse(argc, argv);
+
+  LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
+  LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
+
+  NS_LOG_INFO ("create nodes");
+
+  NodeContainer srvNodes, swNodes, apNodes;
+  srvNodes.Create(1);
+  swNodes.Create(1);
+  apNodes.Create(nAPs);
+  staNodes.Create(1);
+
+  NS_LOG_INFO ("mobility");
+
+  MobilityHelper mobility;
+  mobility.SetPositionAllocator("ns3::GridPositionAllocator",
+																"MinX", DoubleValue(0.0),
+																"MinY", DoubleValue(0.0),
+																"DeltaX", DoubleValue(5.0),
+																"DeltaY", DoubleValue(5.0),
+																"GridWidth", UintegerValue(5),
+																"LayoutType", StringValue("RowFirst"));
+
+  NS_LOG_INFO ("mobility1");
+  mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+
+  mobility.Install(srvNodes);
+  mobility.Install(swNodes);
+  mobility.Install(apNodes);
+  mobility.Install(staNodes);
+
+  SetPosition(srvNodes.Get(0), Vector(10, 0, 0));
+  SetPosition(swNodes.Get(0), Vector(10, 5, 0));
+
+  SetPosition(apNodes.Get(0), Vector(5, 5, 0));
+  SetPosition(apNodes.Get(1), Vector(5, 15, 0));
+  SetPosition(apNodes.Get(2), Vector(15, 15, 0));
+  SetPosition(apNodes.Get(3), Vector(15, 5, 0));
+
+  SetPosition(staNodes.Get(0), Vector(10, 10, 0));
+
+  NS_LOG_INFO ("install stack");
+
+  LinuxStackHelper stack;
+  stack.Install(srvNodes);
+  stack.Install(swNodes);
+  stack.Install(apNodes);
+  stack.Install(staNodes);
+
+  DceManagerHelper dceManager;
+  dceManager.SetTaskManagerAttribute ("FiberManagerType",
+                                       StringValue("UcontextFiberManager"));
+
+  dceManager.SetNetworkStack ("ns3::LinuxSocketFdFactory",
+                              "Library", StringValue ("liblinux.so"));
+
+  dceManager.Install(srvNodes);
+  dceManager.Install(swNodes);
+  dceManager.Install(apNodes);
+  dceManager.Install(staNodes);
+
+  NS_LOG_INFO ("install devices");
+
+  NetDeviceContainer srv2swDevs, sw2srvDevs, sw2apDevs, ap2swDevs, ap2staDevs;
+
+  PointToPointHelper p2p;
+  NetDeviceContainer p2pDevs = p2p.Install(NodeContainer(srvNodes.Get(0), swNodes.Get(0)));
+  srv2swDevs.Add(p2pDevs.Get(0));
+	sw2srvDevs.Add(p2pDevs.Get(1));
+
+  for(uint32_t i = 0; i<nAPs; i++) {
+    p2pDevs = p2p.Install(NodeContainer(apNodes.Get(i), swNodes.Get(0)));
+		ap2swDevs.Add(p2pDevs.Get(0));
+		sw2apDevs.Add(p2pDevs.Get(1));
+  }
+
+  p2p.EnablePcapAll ("netroad-handoff-p2p");
+
+  YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
+
+	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
+	// wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
+	wifiPhy.SetChannel(wifiChannel.Create());
+
+	NqosWifiMacHelper wifiMac = NqosWifiMacHelper::Default();
+
+	WifiHelper wifi = WifiHelper::Default();
+	wifi.SetRemoteStationManager ("ns3::ArfWifiManager");
+	wifi.SetStandard(WIFI_PHY_STANDARD_80211g);
+
+  Ssid ssid = Ssid("NETROAD");
+
+	wifiMac.SetType("ns3::ApWifiMac",
+									"Ssid", SsidValue(ssid));
+	for(uint32_t i = 0; i < nAPs; i++) {
+		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
+		ap2staDevs.Add(wifi.Install(wifiPhy, wifiMac, apNodes.Get(i)));
+	}
+
+	wifiMac.SetType("ns3::StaWifiMac",
+									"Ssid", SsidValue (ssid),
+									"MaxMissedBeacons", UintegerValue (8),
+									"ScanType", EnumValue(StaWifiMac::ACTIVE),
+									"ActiveProbing", BooleanValue(true));
+	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+
+	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
+	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
+
+	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+
+	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
+	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
+
+	wifiPhy.EnablePcapAll("netroad-handoff-wifi", false);
+
+  NS_LOG_INFO ("assign ip");
+
+  SetIpv4Address(srv2swDevs.Get(0), "10.1.1.1", "/24");
+  SetIpv4Address(sw2srvDevs.Get(0), "10.1.1.2", "/24");
+
+  for(uint32_t i = 0; i < nAPs; i++)	{
+    SetIpv4Address(sw2apDevs.Get(i), BuildIpv4Address(10, 1, i+2, 1), Ipv4Mask("/24"));
+    SetIpv4Address(ap2swDevs.Get(i), BuildIpv4Address(10, 1, i+2, 2), Ipv4Mask("/24"));
+
+    SetIpv4Address(ap2staDevs.Get(i), BuildIpv4Address(192, 168, i+1, 1), Ipv4Mask("/24"));
+
+    Ipv4Address gw = BuildIpv4Address(192, 168, i+1, 1);
+    Ipv4Address ip = BuildIpv4Address(192, 168, i+1, 2);
+    Ipv4Address net = ip.CombineMask(Ipv4Mask("/24"));
+
+    Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(ap2staDevs.Get(i));
+    aps.push_back(APInfo(wifiDev->GetMac()->GetAddress(), gw, ip, net));
+  }
+
+  NS_LOG_INFO ("routing");
+
+	RouteAddDefaultWithGatewayIfIndex(srvNodes.Get(0), GetIpv4Address (sw2srvDevs.Get(0)), 0);
+	RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0),Ipv4Address("10.1.1.0"), Ipv4Address("10.1.1.2"), 0);
+
+	for(uint32_t i = 0; i < nAPs; i ++){
+		RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0), BuildIpv4Address(192, 168, i+1, 0), GetIpv4Address (ap2swDevs.Get(i)), i+1);
+		RouteAddWithNetworkGatewayIfIndex(apNodes.Get(i), Ipv4Address("10.1.1.0"), GetIpv4Address (sw2apDevs.Get(i)), 0);
+
+		LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
+	}
+
+	#if 1
+		NodeContainer nodes;
+		nodes.Add(staNodes);
+		nodes.Add(srvNodes);
+
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
+	                               ".net.ipv4.tcp_available_congestion_control", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
+	                               ".net.ipv4.tcp_rmem", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
+	                               ".net.ipv4.tcp_wmem", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
+	                               ".net.core.rmem_max", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
+	                               ".net.core.wmem_max", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
+	                               ".net.ipv4.tcp_available_congestion_control", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
+	                               ".net.ipv4.tcp_rmem", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
+	                               ".net.ipv4.tcp_wmem", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
+	                               ".net.core.rmem_max", &PrintTcpFlags);
+	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
+	                               ".net.core.wmem_max", &PrintTcpFlags);
+	#endif
+
+  DceApplicationHelper dce;
+	dce.SetStackSize (1 << 20);
+
+	dce.SetBinary ("iperf");
+  dce.ResetArguments ();
+  dce.ResetEnvironment ();
+  dce.AddArgument ("-s");
+  dce.AddArgument ("-P");
+  dce.AddArgument ("1");
+
+  apps = dce.Install (srvNodes.Get (0));
+	apps.Start (Seconds (1.0));
+
+	dce.SetBinary ("iperf");
+  dce.ResetArguments ();
+  dce.ResetEnvironment ();
+  dce.AddArgument ("-c");
+  dce.AddArgument ("10.1.1.1");
+  dce.AddArgument ("-i");
+  dce.AddArgument ("1");
+  dce.AddArgument ("--time");
+  dce.AddArgument ("20");
+
+  apps = dce.Install (staNodes.Get (0));
+	apps.Start (Seconds (5.0));
+
+  NS_LOG_INFO ("animation");
+
+	AnimationInterface anim("netroad-handoff.xml");
+
+	Simulator::Stop(Seconds(40));
+	Simulator::Run();
+	Simulator::Destroy();
+	return 0;
+}
+
+static void
+If1Assoc (Mac48Address address)
+{
+  NS_LOG_INFO("if1: " << address);
+	if(address == ap1.m_mac)
+		return;
+
+	for(int i = 0; i < aps.size(); i ++)
+	{
+		if(aps[i].m_mac != address)
+			continue;
+
+		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim0");
+		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "1", "sim0", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
+		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim0");
+		ShowRuleRoute (staNodes.Get(0));
+
+		ap1 = aps[i];
+		break;
+	}
+}
+
+static void
+If2Assoc (Mac48Address address)
+{
+  NS_LOG_INFO("if2: " << address);
+
+	if(address == ap1.m_mac || address == ap2.m_mac)
+		return;
+
+	for(int i = 0; i < aps.size(); i ++)
+	{
+		if(aps[i].m_mac != address)
+			continue;
+
+		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim1");
+		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "2", "sim1", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
+		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim1");
+		ShowRuleRoute(staNodes.Get(0));
+
+		ap2 = aps[i];
+		break;
+	}
+}
+
+static void
+If1MonitorSnifferRx	(Ptr<const Packet> packet,
+	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
+	bool isShortPreamble, double signalDbm, double noiseDbm)
+	{
+		Ptr<Packet> p = packet->Copy();
+
+		WifiMacHeader macHeader;
+		p->RemoveHeader(macHeader);
+
+		if (macHeader.IsBeacon())
+		{
+			MgtBeaconHeader beaconHeader;
+			p->RemoveHeader (beaconHeader);
+
+			NS_LOG_INFO ("ssid:" << beaconHeader.GetSsid() << ",bssid:" << macHeader.GetAddr3()
+						<< ",signalDbm:" << signalDbm << ",noiseDbm:" << noiseDbm);
+		}
+	}
+
+static void
+If2MonitorSnifferRx	(Ptr<const Packet> packet,
+	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
+	bool isShortPreamble, double signalDbm, double noiseDbm)
+	{
+		Ptr<Packet> p = packet->Copy();
+
+		WifiMacHeader macHeader;
+		p->RemoveHeader(macHeader);
+
+		if (macHeader.IsBeacon())
+		{
+			MgtBeaconHeader beaconHeader;
+			p->RemoveHeader (beaconHeader);
+
+			NS_LOG_INFO ("ssid:" << beaconHeader.GetSsid() << ",bssid:" << macHeader.GetAddr3()
+						<< ",signalDbm:" << signalDbm << ",noiseDbm:" << noiseDbm);
+		}
+	}
