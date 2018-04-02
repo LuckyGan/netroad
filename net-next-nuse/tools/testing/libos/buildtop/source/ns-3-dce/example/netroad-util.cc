@@ -59,7 +59,13 @@ namespace ns3 {
   	Config::ConnectWithoutContext(oss.str().c_str(), cb);
   }
 
-  void RouteAddWithNetworkGatewayIfIndex(const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex) {
+  void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex) {
+    std::ostringstream oss;
+    oss << "route add default via " << gateway << " dev sim" << ifIndex;
+    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(0.1), oss.str());
+  }
+  void RouteAddWithNetworkGatewayIfIndex (const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex) {
     std::ostringstream oss;
     oss << "route add " << network << "/24 via " << gateway << " dev sim" << ifIndex;
     NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());

@@ -26,6 +26,7 @@ namespace ns3 {
   void RegisterAssocCallback(Ptr<NetDevice> device,const CallbackBase &cb);
   void RegisterMonitorSnifferRxCallback (const Ptr<NetDevice> device, const CallbackBase &cb);
 
+  void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex);
   void RouteAddWithNetworkGatewayIfIndex(const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex);
   void AddrAddAndLinkUpWithIpIface (const Ptr<Node> node, const Ipv4Address ip, const std::string iface);
   void UpdateRuleRouteWithTableIfaceIpNetworkGateway(const Ptr<Node> node, const std::string table, const std::string iface,

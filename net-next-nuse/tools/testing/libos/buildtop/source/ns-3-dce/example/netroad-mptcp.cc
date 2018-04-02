@@ -1,5 +1,4 @@
 #include "ns3/applications-module.h"
-
 #include "ns3/netanim-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -9,7 +8,7 @@
 
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("NetroadMptcp");
+NS_LOG_COMPONENT_DEFINE("NETROAD_MPTCP");
 
 NodeContainer staNodes;
 NetDeviceContainer sta2apDevs;
@@ -41,7 +40,7 @@ int main(int argc, char* argv[]) {
 	CommandLine cmd;
 	cmd.Parse(argc, argv);
 
-	LogComponentEnable("NetroadMptcp", LOG_LEVEL_ALL);
+	LogComponentEnable("NETROAD_MPTCP", LOG_LEVEL_ALL);
 	LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 
 
@@ -49,8 +48,6 @@ int main(int argc, char* argv[]) {
 
 	int ret = system (cmdCP.c_str());
 	chmod ("files-0/mytest.mp4", 0744);
-
-	std::ostringstream oss;
 
 	NS_LOG_INFO ("create nodes");
 
@@ -60,13 +57,11 @@ int main(int argc, char* argv[]) {
 	apNodes.Create(nApsV + nApsH);
 	staNodes.Create(1);
 
-	for(uint32_t i = 0; i < nApsV; i ++)
-	{
+	for(uint32_t i = 0; i < nApsV; i++) {
 		apNodesV.Add(apNodes.Get(i));
 	}
 
-	for(uint32_t i = nApsV; i < nApsV + nApsH; i ++)
-	{
+	for(uint32_t i = nApsV; i < nApsV+nApsH; i++) {
 		apNodesH.Add(apNodes.Get(i));
 	}
 
@@ -91,13 +86,11 @@ int main(int argc, char* argv[]) {
 
 	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
 	mobility.Install(apNodes);
-	for(uint32_t i = 0; i < nApsV; i ++)
-	{
+	for(uint32_t i = 0; i < nApsV; i++) {
 		SetPositionVelocity(apNodesV.Get(i), Vector(270, i * 300, 0), Vector(0, 10, 0));
 	}
 
-	for(uint32_t i = 0; i < nApsH; i ++)
-	{
+	for(uint32_t i = 0; i < nApsH; i++) {
 		SetPositionVelocity(apNodesH.Get(i), Vector(i * 300, 270, 0), Vector(10, 0, 0));
 	}
 
@@ -130,8 +123,7 @@ int main(int argc, char* argv[]) {
 	srv2swDevs.Add(p2pDevs.Get(0));
 	sw2srvDevs.Add(p2pDevs.Get(1));
 
-	for(uint32_t i = 0; i < nApsV + nApsH; i++)
-	{
+	for(uint32_t i = 0; i < nApsV+nApsH; i++) {
 		p2pDevs = p2p.Install(NodeContainer(apNodes.Get(i), swNodes.Get(0)));
 		ap2swDevs.Add(p2pDevs.Get(0));
 		sw2apDevs.Add(p2pDevs.Get(1));
@@ -153,16 +145,14 @@ int main(int argc, char* argv[]) {
 
 	wifiMac.SetType("ns3::ApWifiMac",
 									"Ssid", SsidValue(ssidV));
-	for(uint32_t i = 0; i < nApsV; i ++)
-	{
+	for(uint32_t i = 0; i < nApsV; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
 		ap2staDevs.Add(wifi.Install(wifiPhy, wifiMac, apNodesV.Get(i)));
 	}
 
 	wifiMac.SetType("ns3::ApWifiMac",
 									"Ssid", SsidValue(ssidH));
-	for(uint32_t i = 0; i < nApsH; i++)
-	{
+	for(uint32_t i = 0; i < nApsH; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
 		ap2staDevs.Add(wifi.Install(wifiPhy, wifiMac, apNodesH.Get(i)));
 	}
@@ -200,7 +190,6 @@ int main(int argc, char* argv[]) {
 
 		SetIpv4Address(ap2staDevs.Get(i), BuildIpv4Address(192, 168, i+1, 1), Ipv4Mask("/24"));
 
-
 		Ipv4Address gw = BuildIpv4Address(192, 168, i+1, 1);
 		Ipv4Address ip = BuildIpv4Address(192, 168, i+1, 2);
 		Ipv4Address net = ip.CombineMask(Ipv4Mask("/24"));
@@ -211,11 +200,7 @@ int main(int argc, char* argv[]) {
 
 	NS_LOG_INFO ("routing");
 
-	oss.str("");
-	oss << "route add default via " << GetIpv4Address (sw2srvDevs.Get(0)) << " dev sim0";
-	LinuxStackHelper::RunIp (srvNodes.Get(0), Seconds(0.1), oss.str());
-	NS_LOG_INFO ("srv: " << oss.str().c_str());
-
+	RouteAddDefaultWithGatewayIfIndex(srvNodes.Get(0), GetIpv4Address (sw2srvDevs.Get(0)), 0);
 	RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0),Ipv4Address("10.1.1.0"), Ipv4Address("10.1.1.2"), 0);
 
 	for(uint32_t i = 0; i < nApsV + nApsH; i ++){
@@ -268,8 +253,6 @@ int main(int argc, char* argv[]) {
 	NS_LOG_INFO ("animation");
 
 	AnimationInterface anim("netroad-mptcp.xml");
-
-	NS_LOG_INFO (Simulator::Now());
 
 	Simulator::Stop(Seconds(30));
 	Simulator::Run();
