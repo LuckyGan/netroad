@@ -2,8 +2,6 @@
 #include "ns3/netanim-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
-
-
 #include "netroad-util.h"
 
 using namespace ns3;
@@ -22,7 +20,6 @@ static void If2Assoc (Mac48Address address);
 static void If1MonitorSnifferRx	(Ptr<const Packet> packet,
 	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
-
 static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
 	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
@@ -34,8 +31,6 @@ int main(int argc, char* argv[]){
 	cmd.Parse(argc, argv);
 
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
-	// LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
-	// LogComponentEnable("TaskManager", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 
   NS_LOG_INFO ("create nodes");
@@ -113,9 +108,7 @@ int main(int argc, char* argv[]){
   p2p.EnablePcapAll ("netroad-handoff-p2p");
 
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
-
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
-
 	wifiPhy.SetChannel(wifiChannel.Create());
 
 	NqosWifiMacHelper wifiMac = NqosWifiMacHelper::Default();
@@ -124,15 +117,16 @@ int main(int argc, char* argv[]){
 	wifi.SetStandard(WIFI_PHY_STANDARD_80211g);
 
   Ssid ssid = Ssid("NETROAD");
+	wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid)
+		// "BeaconGeneration", BooleanValue (false)
+	);
 
-	wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
 	for(uint32_t i = 0; i < nAPs; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
 		ap2staDevs.Add(wifi.Install(wifiPhy, wifiMac, apNodes.Get(i)));
 
 		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (ap2staDevs.Get (i));
-		NS_LOG_INFO (wifiDev->GetMac ()->GetAddress());
-		NS_LOG_INFO (wifiDev->GetPhy ()->GetChannelNumber ());
+		NS_LOG_INFO ("ap: " << wifiDev->GetMac ()->GetAddress() << ", channel: " << wifiDev->GetPhy ()->GetChannelNumber ());
 	}
 
 	wifiMac.SetType("ns3::StaWifiMac",
@@ -143,6 +137,9 @@ int main(int argc, char* argv[]){
 	for(uint32_t i = 0; i < 2; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
 		sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+
+		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (sta2apDevs.Get (i));
+		NS_LOG_INFO ("sta: " << wifiDev->GetMac ()->GetAddress() << ", channel: " << wifiDev->GetPhy ()->GetChannelNumber ());
 	}
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
@@ -187,7 +184,7 @@ int main(int argc, char* argv[]){
 	NS_LOG_INFO ("apps");
 
   DceApplicationHelper dce;
-	dce.SetStackSize (1 << 20);
+	dce.SetStackSize (1 << 30);
 
 	dce.SetBinary ("iperf");
   dce.ResetArguments ();
@@ -197,30 +194,21 @@ int main(int argc, char* argv[]){
   dce.AddArgument ("1");
 
   apps = dce.Install (srvNodes.Get (0));
-	apps.Start (Seconds (1.0));
+	apps.Start (Seconds (3.0));
 
 	Ptr<WifiNetDevice> wifiNetDevice1 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (0));
 	Ptr<StaWifiMac> staWifiMac1 = DynamicCast<StaWifiMac> (wifiNetDevice1->GetMac ());
-	Mac48Address address1 = Mac48Address ("00:00:00:00:00:0b");
-	staWifiMac1->SetNewAssociation (address1);
-
-
-	// Simulator::Schedule(Seconds(0.3), &StaWifiMac::SetNewAssociation, staWifiMac1, address1);
-
-
+	Mac48Address address1 = Mac48Address ("00:00:00:00:00:0e");
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(2), &StaWifiMac::SetNewAssociation, staWifiMac1, address1);
 
 	Ptr<WifiNetDevice> wifiNetDevice2 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (1));
 	Ptr<StaWifiMac> staWifiMac2 = DynamicCast<StaWifiMac> (wifiNetDevice2->GetMac ());
 	Mac48Address address2 = Mac48Address ("00:00:00:00:00:0c");
-	staWifiMac2->SetNewAssociation (address2);
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(1), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
 
-	// Simulator::Schedule(Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
+	// Mac48Address address3 = Mac48Address ("00:00:00:00:00:0b");
+	// Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(50), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
 
-	// Simulator::Schedule(Seconds(5), &NewAssociation, staWifiMac, addr);
-	// Simulator::Schedule(Seconds(10), &DoIperf, staNodes.Get (0));
-
-	// Simulator::Schedule(Seconds(5), &EchoHaha, Mac48Address ("00:00:00:00:00:0d"));
-	// Simulator::Schedule(Seconds(10), &EchoHehe, Mac48Address ("00:00:00:00:00:0d"));
 
 	dce.SetBinary ("iperf");
 	dce.ResetArguments ();
@@ -230,16 +218,16 @@ int main(int argc, char* argv[]){
 	dce.AddArgument ("-i");
 	dce.AddArgument ("1");
 	dce.AddArgument ("--time");
-	dce.AddArgument ("20");
+	dce.AddArgument ("200");
 
 	apps = dce.Install (staNodes.Get (0));
-	apps.Start (Seconds(2));
+	apps.Start (Seconds(6));
 
   NS_LOG_INFO ("animation");
 
 	AnimationInterface anim("netroad-handoff.xml");
 
-	Simulator::Stop(Seconds(40));
+	Simulator::Stop(Seconds(300));
 	Simulator::Run();
 	Simulator::Destroy();
 	return 0;
@@ -248,7 +236,7 @@ int main(int argc, char* argv[]){
 static void
 If1Assoc (Mac48Address address)
 {
-  NS_LOG_INFO("if1: " << address);
+  NS_LOG_INFO(Simulator::Now() << " if1: " << address);
 	if(address == ap1.m_mac)
 		return;
 
@@ -265,12 +253,14 @@ If1Assoc (Mac48Address address)
 		ap1 = aps[i];
 		break;
 	}
+
+	NS_LOG_INFO(Simulator::Now() << " if1: ok");
 }
 
 static void
 If2Assoc (Mac48Address address)
 {
-  NS_LOG_INFO("if2: " << address);
+  NS_LOG_INFO(Simulator::Now() << " if2: " << address);
 
 	if(address == ap1.m_mac || address == ap2.m_mac)
 		return;
@@ -288,6 +278,8 @@ If2Assoc (Mac48Address address)
 		ap2 = aps[i];
 		break;
 	}
+
+	NS_LOG_INFO(Simulator::Now() << " if2: ok");
 }
 
 static void
