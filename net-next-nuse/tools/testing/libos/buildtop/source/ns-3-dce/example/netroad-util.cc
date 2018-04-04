@@ -121,4 +121,30 @@ namespace ns3 {
   	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 1");
   	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 2");
   }
+
+  void NewAssociation (const Ptr<StaWifiMac> staWifiMac, const Mac48Address address) {
+    NS_LOG_INFO (Simulator::Now());
+    NS_LOG_INFO (staWifiMac->GetAddress ());
+    NS_LOG_INFO (address);
+    staWifiMac->SetNewAssociation (address);
+  }
+
+  void DoIperf (const Ptr<Node> node) {
+    DceApplicationHelper dce;
+    dce.SetStackSize (1 << 30);
+
+    dce.SetBinary ("iperf");
+    dce.ResetArguments ();
+    dce.ResetEnvironment ();
+    dce.AddArgument ("-c");
+    dce.AddArgument ("10.1.1.1");
+    dce.AddArgument ("-i");
+    dce.AddArgument ("1");
+    dce.AddArgument ("--time");
+    dce.AddArgument ("20");
+
+    // ApplicationContainer apps = dce.Install (node);
+    // NS_LOG_INFO (Simulator::Now());
+    // apps.Start (Simulator::Now());
+  }
 }

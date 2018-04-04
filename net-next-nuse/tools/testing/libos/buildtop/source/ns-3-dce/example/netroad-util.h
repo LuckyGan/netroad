@@ -5,6 +5,7 @@
 #include "ns3/dce-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
+#include "ns3/wifi-module.h"
 
 namespace ns3 {
 
@@ -33,6 +34,9 @@ namespace ns3 {
     const Ipv4Address ip, const Ipv4Address net, const Ipv4Address gw);
   void RouteAddGlobalWithGatewayIface(const Ptr<Node> node, const Ipv4Address gw, const std::string iface);
   void ShowRuleRoute(const Ptr<Node> node);
+
+  void NewAssociation (const Ptr<StaWifiMac> staWifiMac, const Mac48Address address);
+  void DoIperf (const Ptr<Node> node);
 }
 
 #endif

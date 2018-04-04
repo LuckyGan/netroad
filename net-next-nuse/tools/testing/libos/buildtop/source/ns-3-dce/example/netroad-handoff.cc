@@ -2,7 +2,7 @@
 #include "ns3/netanim-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
-#include "ns3/wifi-module.h"
+
 
 #include "netroad-util.h"
 
@@ -27,12 +27,6 @@ static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
 	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
 
-	void
-	PrintTcpFlags (std::string key, std::string value)
-	{
-	  NS_LOG_INFO (key << "=" << value);
-	}
-
 int main(int argc, char* argv[]){
   uint32_t nAPs = 4;
 
@@ -40,6 +34,8 @@ int main(int argc, char* argv[]){
 	cmd.Parse(argc, argv);
 
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
+	// LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
+	// LogComponentEnable("TaskManager", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 
   NS_LOG_INFO ("create nodes");
@@ -119,38 +115,41 @@ int main(int argc, char* argv[]){
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
 
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
-	// wifiPhy.SetPcapDataLinkType(YansWifiPhyHelper::DLT_IEEE802_11_RADIO);
+
 	wifiPhy.SetChannel(wifiChannel.Create());
 
 	NqosWifiMacHelper wifiMac = NqosWifiMacHelper::Default();
 
 	WifiHelper wifi = WifiHelper::Default();
-	wifi.SetRemoteStationManager ("ns3::ArfWifiManager");
 	wifi.SetStandard(WIFI_PHY_STANDARD_80211g);
 
   Ssid ssid = Ssid("NETROAD");
 
-	wifiMac.SetType("ns3::ApWifiMac",
-									"Ssid", SsidValue(ssid));
+	wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid));
 	for(uint32_t i = 0; i < nAPs; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
 		ap2staDevs.Add(wifi.Install(wifiPhy, wifiMac, apNodes.Get(i)));
+
+		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (ap2staDevs.Get (i));
+		NS_LOG_INFO (wifiDev->GetMac ()->GetAddress());
+		NS_LOG_INFO (wifiDev->GetPhy ()->GetChannelNumber ());
 	}
 
 	wifiMac.SetType("ns3::StaWifiMac",
 									"Ssid", SsidValue (ssid),
-									"MaxMissedBeacons", UintegerValue (8),
-									"ScanType", EnumValue(StaWifiMac::ACTIVE),
-									"ActiveProbing", BooleanValue(true));
-	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+									"ScanType", EnumValue(StaWifiMac::NOTSUPPORT),
+									"ActiveProbing", BooleanValue(false));
+
+	for(uint32_t i = 0; i < 2; i++) {
+		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
+		sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+	}
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
-	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
-
-	sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
 
 	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
-	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
 
 	wifiPhy.EnablePcapAll("netroad-handoff-wifi", false);
 
@@ -185,32 +184,7 @@ int main(int argc, char* argv[]){
 		LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
 	}
 
-	#if 1
-		NodeContainer nodes;
-		nodes.Add(staNodes);
-		nodes.Add(srvNodes);
-
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
-	                               ".net.ipv4.tcp_available_congestion_control", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
-	                               ".net.ipv4.tcp_rmem", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
-	                               ".net.ipv4.tcp_wmem", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
-	                               ".net.core.rmem_max", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), NanoSeconds (0),
-	                               ".net.core.wmem_max", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
-	                               ".net.ipv4.tcp_available_congestion_control", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
-	                               ".net.ipv4.tcp_rmem", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
-	                               ".net.ipv4.tcp_wmem", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
-	                               ".net.core.rmem_max", &PrintTcpFlags);
-	  LinuxStackHelper::SysctlGet (nodes.Get (0), Seconds (1),
-	                               ".net.core.wmem_max", &PrintTcpFlags);
-	#endif
+	NS_LOG_INFO ("apps");
 
   DceApplicationHelper dce;
 	dce.SetStackSize (1 << 20);
@@ -225,18 +199,41 @@ int main(int argc, char* argv[]){
   apps = dce.Install (srvNodes.Get (0));
 	apps.Start (Seconds (1.0));
 
-	dce.SetBinary ("iperf");
-  dce.ResetArguments ();
-  dce.ResetEnvironment ();
-  dce.AddArgument ("-c");
-  dce.AddArgument ("10.1.1.1");
-  dce.AddArgument ("-i");
-  dce.AddArgument ("1");
-  dce.AddArgument ("--time");
-  dce.AddArgument ("20");
+	Ptr<WifiNetDevice> wifiNetDevice1 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (0));
+	Ptr<StaWifiMac> staWifiMac1 = DynamicCast<StaWifiMac> (wifiNetDevice1->GetMac ());
+	Mac48Address address1 = Mac48Address ("00:00:00:00:00:0b");
+	staWifiMac1->SetNewAssociation (address1);
 
-  apps = dce.Install (staNodes.Get (0));
-	apps.Start (Seconds (5.0));
+
+	// Simulator::Schedule(Seconds(0.3), &StaWifiMac::SetNewAssociation, staWifiMac1, address1);
+
+
+
+	Ptr<WifiNetDevice> wifiNetDevice2 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (1));
+	Ptr<StaWifiMac> staWifiMac2 = DynamicCast<StaWifiMac> (wifiNetDevice2->GetMac ());
+	Mac48Address address2 = Mac48Address ("00:00:00:00:00:0c");
+	staWifiMac2->SetNewAssociation (address2);
+
+	// Simulator::Schedule(Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
+
+	// Simulator::Schedule(Seconds(5), &NewAssociation, staWifiMac, addr);
+	// Simulator::Schedule(Seconds(10), &DoIperf, staNodes.Get (0));
+
+	// Simulator::Schedule(Seconds(5), &EchoHaha, Mac48Address ("00:00:00:00:00:0d"));
+	// Simulator::Schedule(Seconds(10), &EchoHehe, Mac48Address ("00:00:00:00:00:0d"));
+
+	dce.SetBinary ("iperf");
+	dce.ResetArguments ();
+	dce.ResetEnvironment ();
+	dce.AddArgument ("-c");
+	dce.AddArgument ("10.1.1.1");
+	dce.AddArgument ("-i");
+	dce.AddArgument ("1");
+	dce.AddArgument ("--time");
+	dce.AddArgument ("20");
+
+	apps = dce.Install (staNodes.Get (0));
+	apps.Start (Seconds(2));
 
   NS_LOG_INFO ("animation");
 

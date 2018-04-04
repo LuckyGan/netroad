@@ -117,6 +117,8 @@ public:
    */
   void NotifyCcaBusyOccurred ();
 
+  void SetNewAssociation (Mac48Address address);
+
 protected:
   virtual void DoDispose ();
 
@@ -164,12 +166,12 @@ private:
    */
   void TryToEnsureAssociated (void);
   /**
-   * This method is called after the association timeout occurred. We switch the state to 
+   * This method is called after the association timeout occurred. We switch the state to
    * WAIT_ASSOC_RESP and re-send an association request.
    */
   void AssocRequestTimeout (void);
   /**
-   * This method is called after the probe request timeout occurred. We switch the state to 
+   * This method is called after the probe request timeout occurred. We switch the state to
    * WAIT_PROBE_RESP and re-send a probe request.
    */
   void ProbeRequestTimeout (void);
@@ -186,11 +188,11 @@ private:
    */
   bool IsWaitAssocResp (void) const;
   /**
-   * This method is called after we have not received a beacon from the AP 
+   * This method is called after we have not received a beacon from the AP
    */
   void MissedBeacons (void);
   /**
-   * Restarts the beacon timer. 
+   * Restarts the beacon timer.
    *
    * \param delay the delay before the watchdog fires
    */
@@ -211,7 +213,7 @@ private:
 
   /**
    * Return the HT capability of the current AP.
-   * 
+   *
    * \return the HT capability that we support
    */
   HtCapabilities GetHtCapabilities (void) const;

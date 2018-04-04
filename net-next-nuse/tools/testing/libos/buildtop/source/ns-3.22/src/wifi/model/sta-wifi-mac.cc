@@ -61,9 +61,23 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("StaWifiMac");
 
+void
+StaWifiMac::SetNewAssociation (Mac48Address address)
+{
+  m_linkDown ();
+  SetState (WAIT_ASSOC_RESP);
+  SetBssid (address);
+  SendAssociationRequest ();
+  if (!m_linkUp.IsNull ())
+    {
+      m_linkUp ();
+    }
+}
+
 class PhyStaMacListener : public ns3::WifiPhyListener
 {
 public:
+
   PhyStaMacListener (ns3::StaWifiMac *staMac)
     : m_staMac (staMac)
   {
@@ -246,7 +260,7 @@ StaWifiMac::SetActiveProbing (bool enable)
     }
   m_activeProbing = enable;
 }
-  
+
 bool StaWifiMac::GetActiveProbing (void) const
 {
   return m_activeProbing;
@@ -348,7 +362,7 @@ StaWifiMac::TryToEnsureAssociated (void)
        * We try to initiate a probe request now.
        */
       m_linkDown ();
-      if (m_activeProbing) 
+      if (m_activeProbing)
         {
       SetState (WAIT_PROBE_RESP);
       SendProbeRequest ();
@@ -707,15 +721,15 @@ StaWifiMac::Receive (Ptr<Packet> packet, const WifiMacHeader *hdr)
 	   //DRAGOS
               char buf[] = "E\0ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz";
               int64_t time_us = Simulator::Now().GetMicroSeconds();
-              memcpy(buf + 20, &time_us, sizeof(int64_t)); 
+              memcpy(buf + 20, &time_us, sizeof(int64_t));
               Ptr<Packet> packet = Create<Packet> ((const uint8_t*)buf, sizeof(buf));
-              Mac48Address broadcast = Mac48Address ("ff:ff:ff:ff:ff:ff"); 
+              Mac48Address broadcast = Mac48Address ("ff:ff:ff:ff:ff:ff");
               LlcSnapHeader llc;
-              
+
               llc.SetType (0x800);
               packet->AddHeader (llc);
-              
-              Enqueue (packet, broadcast); 
+
+              Enqueue (packet, broadcast);
 	   //DRAGOS
             }
           else
