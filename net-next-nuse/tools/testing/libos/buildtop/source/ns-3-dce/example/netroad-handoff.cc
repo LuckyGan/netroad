@@ -26,7 +26,7 @@ static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
 
 int main(int argc, char* argv[]){
 	Packet::EnablePrinting ();
-  uint32_t nAPs = 4;
+  uint32_t nAPs = 3;
 
   CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -70,7 +70,6 @@ int main(int argc, char* argv[]){
   SetPosition(apNodes.Get(0), Vector(5, 5, 0));
   SetPosition(apNodes.Get(1), Vector(5, 15, 0));
   SetPosition(apNodes.Get(2), Vector(15, 15, 0));
-  SetPosition(apNodes.Get(3), Vector(15, 5, 0));
 
   SetPosition(staNodes.Get(0), Vector(10, 10, 0));
 
@@ -201,39 +200,40 @@ int main(int argc, char* argv[]){
   dce.AddArgument ("1");
 
   apps = dce.Install (srvNodes.Get (0));
-	apps.Start (Seconds (3.0));
+	apps.Start (Seconds (1.0));
 
 	Ptr<WifiNetDevice> wifiNetDevice1 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (0));
 	Ptr<StaWifiMac> staWifiMac1 = DynamicCast<StaWifiMac> (wifiNetDevice1->GetMac ());
-	Mac48Address address1 = Mac48Address ("00:00:00:00:00:0e");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(2), &StaWifiMac::SetNewAssociation, staWifiMac1, address1);
 
 	Ptr<WifiNetDevice> wifiNetDevice2 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (1));
 	Ptr<StaWifiMac> staWifiMac2 = DynamicCast<StaWifiMac> (wifiNetDevice2->GetMac ());
-	Mac48Address address2 = Mac48Address ("00:00:00:00:00:0c");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(1), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
 
-	Mac48Address address3 = Mac48Address ("00:00:00:00:00:0b");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(4), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
+	Mac48Address address1 = Mac48Address ("00:00:00:00:00:0b");
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(30), &StaWifiMac::SetNewAssociation, staWifiMac1, address1, 11);
+
+
+	Mac48Address address2 = Mac48Address ("00:00:00:00:00:09");
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(60), &StaWifiMac::SetNewAssociation, staWifiMac2, address2, 1);
+
+	Mac48Address address3 = Mac48Address ("00:00:00:00:00:0a");
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(90), &StaWifiMac::SetNewAssociation, staWifiMac1, address3, 6);
 
 	dce.SetBinary ("iperf");
 	dce.ResetArguments ();
 	dce.ResetEnvironment ();
 	dce.AddArgument ("-c");
 	dce.AddArgument ("10.1.1.1");
-	dce.AddArgument ("-i");
-	dce.AddArgument ("1");
 	dce.AddArgument ("--time");
-	dce.AddArgument ("200");
+	dce.AddArgument ("500");
 
 	apps = dce.Install (staNodes.Get (0));
-	apps.Start (Seconds(6));
+	apps.Start (Seconds(3.0));
 
   NS_LOG_INFO ("animation");
 
 	AnimationInterface anim("netroad-handoff.xml");
 
-	Simulator::Stop(Seconds(300));
+	Simulator::Stop(Seconds(200.0));
 	Simulator::Run();
 	Simulator::Destroy();
 	return 0;

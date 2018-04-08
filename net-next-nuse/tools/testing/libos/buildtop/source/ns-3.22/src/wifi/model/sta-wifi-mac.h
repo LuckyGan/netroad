@@ -117,7 +117,7 @@ public:
    */
   void NotifyCcaBusyOccurred ();
 
-  void SetNewAssociation (Mac48Address address);
+  void SetNewAssociation (Mac48Address address, uint16_t channelNumber);
 
 protected:
   virtual void DoDispose ();

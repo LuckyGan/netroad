@@ -18,8 +18,8 @@ testbin: bake check_pkgs
 	cd buildtop ; \
 	../bake/bake.py show --enabledTree | grep -v  -E "pygoocanvas|graphviz|python-dev" | grep Missing && (echo "required packages are missing") || echo ""
 	cd buildtop ; \
-	../bake/bake.py download -vvv; \
-	../bake/bake.py update -vvv; \
+#	../bake/bake.py download -vvv; \
+#	../bake/bake.py update -vvv; \
 	../bake/bake.py build -vvv
 
 test:

@@ -34,7 +34,7 @@ namespace ns3 {
   double RuleRouteUpdateWithIfIndexAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset);
   double RouteAddGlobalWithGatewayIface (const Ptr<Node> node, const Ipv4Address gw, const uint32_t ifIndex, double timeOffset);
   double ShowRuleRoute(const Ptr<Node> node, double timeOffset);
-
+  double RemoveIpv4Address(const Ptr<Node> node, const uint32_t ifIndex, const Ipv4Address ip, double timeOffset);
   double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap);
   double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset);
   void DoIperf (const Ptr<Node> node);

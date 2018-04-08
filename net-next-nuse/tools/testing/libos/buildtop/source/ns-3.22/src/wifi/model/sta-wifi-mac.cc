@@ -62,11 +62,12 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("StaWifiMac");
 
 void
-StaWifiMac::SetNewAssociation (Mac48Address address)
+StaWifiMac::SetNewAssociation (Mac48Address address, uint16_t channelNumber)
 {
   m_linkDown ();
   SetState (WAIT_ASSOC_RESP);
   SetBssid (address);
+  m_phy->SetChannelNumber (channelNumber);
   SendAssociationRequest ();
   if (!m_linkUp.IsNull ())
     {

@@ -127,6 +127,12 @@ namespace ns3 {
 
   double ShowRuleRoute(const Ptr<Node> node, double timeOffset) {
 
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "addr show dev sim0");
+    timeOffset += 0.01;
+
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "addr show dev sim1");
+    timeOffset += 0.01;
+
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), "rule show");
     timeOffset += 0.01;
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show");
@@ -149,14 +155,23 @@ namespace ns3 {
   double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap) {
 
     double timeOffset = 0.0;
-    // if(oldAP.m_mac != Mac48Address ()) {
-    //   timeOffset = RemoveOldRuleRoute (node, ifIndex, oldAP, timeOffset);
-    // }
-
+    if(oldAP.m_mac != Mac48Address ()) {
+      timeOffset = RemoveIpv4Address (node, ifIndex, oldAP.m_ip, timeOffset + 0.01);
+      // timeOffset = RemoveOldRuleRoute (node, ifIndex, oldAP, timeOffset);
+    }
+    
     timeOffset = AddrAddLinkUpWithIpIfIndex (node, ap.m_ip, ifIndex, timeOffset + 0.01);
     timeOffset = RuleRouteUpdateWithIfIndexAp (node, ifIndex, ap, timeOffset + 0.01);
     timeOffset = RouteAddGlobalWithGatewayIface (node, ap.m_gw, ifIndex, timeOffset + 0.01);
     timeOffset = ShowRuleRoute(node, timeOffset + 0.01);
+
+    return timeOffset;
+  }
+
+  double RemoveIpv4Address(const Ptr<Node> node, const uint32_t ifIndex, const Ipv4Address ip, double timeOffset) {
+    std::ostringstream oss;
+    oss << "addr del " << ip << "/24 dev sim" << ifIndex;
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     return timeOffset;
   }
