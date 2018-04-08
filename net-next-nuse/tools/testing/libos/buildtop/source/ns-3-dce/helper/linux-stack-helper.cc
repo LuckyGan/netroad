@@ -30,6 +30,9 @@
 #include "ns3/ipv4-global-routing-helper.h"
 
 namespace ns3 {
+  
+  NS_LOG_COMPONENT_DEFINE ("LinuxStackHelper");
+
 LinuxStackHelper::LinuxStackHelper ()
   : m_routing (0)
 {
@@ -53,7 +56,7 @@ LinuxStackHelper::~LinuxStackHelper ()
   delete m_routing;
 }
 
-void 
+void
 LinuxStackHelper::SetRoutingHelper (const Ipv4RoutingHelper &routing)
 {
   delete m_routing;
@@ -120,6 +123,7 @@ LinuxStackHelper::PopulateRoutingTables ()
 void
 LinuxStackHelper::RunIp (Ptr<Node> node, Time at, std::string str)
 {
+  NS_LOG_INFO ("node " << node->GetId() << ": " << str);
 #ifdef KERNEL_STACK
   DceApplicationHelper process;
   ApplicationContainer apps;

@@ -34,6 +34,7 @@ int main(int argc, char* argv[]){
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 	// LogComponentEnable("TypeId", LOG_LEVEL_ALL);
+	LogComponentEnable("LinuxStackHelper", LOG_LEVEL_ALL);
 
 
   NS_LOG_INFO ("create nodes");
@@ -137,7 +138,7 @@ int main(int argc, char* argv[]){
 									"Ssid", SsidValue (ssid),
 									"ScanType", EnumValue(StaWifiMac::NOTSUPPORT),
 									"ActiveProbing", BooleanValue(false),
-									"MaxMissedBeacons", UintegerValue (1008600));
+									"MaxMissedBeacons", UintegerValue (10086));
 
 	for(uint32_t i = 0; i < 2; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
@@ -148,10 +149,10 @@ int main(int argc, char* argv[]){
 	}
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
-	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
 
 	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
-	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
 
 	wifiPhy.EnablePcapAll("netroad-handoff-wifi", false);
 
@@ -184,7 +185,7 @@ int main(int argc, char* argv[]){
 		RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0), BuildIpv4Address(192, 168, i+1, 0), GetIpv4Address (ap2swDevs.Get(i)), i+1);
 		RouteAddWithNetworkGatewayIfIndex(apNodes.Get(i), Ipv4Address("10.1.1.0"), GetIpv4Address (sw2apDevs.Get(i)), 0);
 
-		LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
+		// LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
 	}
 
 	NS_LOG_INFO ("apps");
@@ -213,7 +214,7 @@ int main(int argc, char* argv[]){
 	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(1), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
 
 	Mac48Address address3 = Mac48Address ("00:00:00:00:00:0b");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(20), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(4), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
 
 	dce.SetBinary ("iperf");
 	dce.ResetArguments ();

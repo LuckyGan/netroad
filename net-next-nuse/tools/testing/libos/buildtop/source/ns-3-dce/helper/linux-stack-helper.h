@@ -21,6 +21,7 @@
 #define LINUX_STACK_HELPER_H
 
 #include "ns3/object.h"
+#include "ns3/core-module.h"
 
 namespace ns3 {
 
@@ -82,9 +83,9 @@ public:
    * \param routing a new routing helper
    *
    * Set the routing helper to use during Install. The routing
-   * helper is really an object factory which is used to create 
+   * helper is really an object factory which is used to create
    * an object of type ns3::Ipv4RoutingProtocol per node. This routing
-   * object is then associated to a single ns3::Ipv4 object through its 
+   * object is then associated to a single ns3::Ipv4 object through its
    * ns3::Ipv4::SetRoutingProtocol.
    */
   void SetRoutingHelper (const Ipv4RoutingHelper &routing);

@@ -62,27 +62,23 @@ namespace ns3 {
   void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex) {
     std::ostringstream oss;
     oss << "route add default via " << gateway << " dev sim" << ifIndex;
-    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(0.01), oss.str());
   }
 
   void RouteAddWithNetworkGatewayIfIndex (const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex) {
     std::ostringstream oss;
     oss << "route add " << network << "/24 via " << gateway << " dev sim" << ifIndex;
-    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(0.01), oss.str());
   }
 
   double AddrAddLinkUpWithIpIfIndex (const Ptr<Node> node, const Ipv4Address ip, const uint32_t ifIndex, double timeOffset) {
   	std::ostringstream oss;
   	oss << "-f inet addr add " << ip << "/24 dev sim" << ifIndex;
-    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
     timeOffset += 0.01;
   	oss.str("");
   	oss << "link set sim" << ifIndex << " up arp on";
-    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
     return timeOffset;
@@ -93,31 +89,26 @@ namespace ns3 {
 
   	std::ostringstream oss;
   	oss << "rule del lookup " << ifIndex +1;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
     timeOffset += 0.01;
 		oss.str("");
     oss << "route flush table " << ifIndex +1;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
 		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
     timeOffset += 0.01;
 		oss.str ("");
 		oss << "rule add from " << ap.m_ip << " table " << ifIndex + 1;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
 		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str ());
 
     timeOffset += 0.01;
 		oss.str ("");
 		oss << "route add " << ap.m_net << "/24 dev sim" << ifIndex << " scope link table " << ifIndex + 1;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
 		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str ());
 
     timeOffset += 0.01;
 		oss.str ("");
 		oss << "route add default via " << ap.m_gw << " dev sim" << ifIndex <<" table " << ifIndex + 1;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
 		LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     return timeOffset;
@@ -129,7 +120,6 @@ namespace ns3 {
     timeOffset += 0.01;
   	std::ostringstream oss;
   	oss << "route add default scope global nexthop via "<< gw <<" dev sim" << ifIndex;
-    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
   	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
     return timeOffset;
@@ -174,28 +164,23 @@ namespace ns3 {
   double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset) {
     uint32_t nodeId = node->GetId ();
 
-    timeOffset += 0.01;
   	std::ostringstream oss;
     oss << "route del " << ap.m_net << "/24 dev sim" << ifIndex << " proto kernel scope link src " << ap.m_ip;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     timeOffset += 0.01;
     oss.str ("");
     oss << "route del broadcast " << ap.m_net << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     timeOffset += 0.01;
     oss.str ("");
     oss << "route del local " << ap.m_ip << " dev sim" << ifIndex << " table local proto kernel scope host src " << ap.m_ip;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     timeOffset += 0.01;
     oss.str ("");
     oss << "route del broadcast " << ap.m_broadcast << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
-    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     timeOffset += 0.01;
