@@ -63,70 +63,148 @@ namespace ns3 {
     std::ostringstream oss;
     oss << "route add default via " << gateway << " dev sim" << ifIndex;
     NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
-    LinuxStackHelper::RunIp (node, Seconds(0.1), oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(0.01), oss.str());
   }
+
   void RouteAddWithNetworkGatewayIfIndex (const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex) {
     std::ostringstream oss;
     oss << "route add " << network << "/24 via " << gateway << " dev sim" << ifIndex;
     NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
-    LinuxStackHelper::RunIp (node, Seconds(0.1), oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(0.01), oss.str());
   }
 
-  void AddrAddAndLinkUpWithIpIface (const Ptr<Node> node, const Ipv4Address ip, const std::string iface) {
+  double AddrAddLinkUpWithIpIfIndex (const Ptr<Node> node, const Ipv4Address ip, const uint32_t ifIndex, double timeOffset) {
   	std::ostringstream oss;
-  	oss << "-f inet addr add " << ip << "/24 dev " << iface;
-  	LinuxStackHelper::RunIp (node, Seconds(0), oss.str());
+  	oss << "-f inet addr add " << ip << "/24 dev sim" << ifIndex;
+    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
+    timeOffset += 0.01;
   	oss.str("");
-  	oss << "link set " << iface << " up arp on";
-  	LinuxStackHelper::RunIp (node, Seconds(0), oss.str());
+  	oss << "link set sim" << ifIndex << " up arp on";
+    NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
+
+    return timeOffset;
   }
 
-  void UpdateRuleRouteWithTableIfaceIpNetworkGateway(const Ptr<Node> node, const std::string table, const std::string iface,
-    const Ipv4Address ip, const Ipv4Address net, const Ipv4Address gw) {
+  double RuleRouteUpdateWithIfIndexAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset) {
+    uint32_t nodeId = node->GetId ();
 
   	std::ostringstream oss;
-  	oss << "rule del lookup " << table;
-  	LinuxStackHelper::RunIp (node, Seconds(0), oss.str());
+  	oss << "rule del lookup " << ifIndex +1;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
+    timeOffset += 0.01;
 		oss.str("");
-		oss << "route flush table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str());
+    oss << "route flush table " << ifIndex +1;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
 
+    timeOffset += 0.01;
 		oss.str ("");
-		oss << "rule add from " << ip << " table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
+		oss << "rule add from " << ap.m_ip << " table " << ifIndex + 1;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str ());
 
+    timeOffset += 0.01;
 		oss.str ("");
-		oss << "route add " << net << "/24 dev " << iface << " scope link table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
+		oss << "route add " << ap.m_net << "/24 dev sim" << ifIndex << " scope link table " << ifIndex + 1;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+		LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str ());
 
+    timeOffset += 0.01;
 		oss.str ("");
-		oss << "route add default via " << gw << " dev " << iface <<" table " << table;
-		LinuxStackHelper::RunIp (node, Seconds(0), oss.str ());
+		oss << "route add default via " << ap.m_gw << " dev sim" << ifIndex <<" table " << ifIndex + 1;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+		LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
+
+    return timeOffset;
 	}
 
-  void RouteAddGlobalWithGatewayIface(const Ptr<Node> node, const Ipv4Address gw, const std::string iface) {
-  	LinuxStackHelper::RunIp (node, Seconds(0), "route del default");
+  double RouteAddGlobalWithGatewayIface (const Ptr<Node> node, const Ipv4Address gw, const uint32_t ifIndex, double timeOffset) {
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route del default");
 
+    timeOffset += 0.01;
   	std::ostringstream oss;
-  	oss << "route add default scope global nexthop via "<< gw <<" dev " << iface;
+  	oss << "route add default scope global nexthop via "<< gw <<" dev sim" << ifIndex;
     NS_LOG_INFO ("node " << node->GetId() << ": " << oss.str());
-  	LinuxStackHelper::RunIp (node, Seconds(0), oss.str());
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), oss.str());
+
+    return timeOffset;
   }
 
-  void ShowRuleRoute(const Ptr<Node> node) {
-  	LinuxStackHelper::RunIp (node, Seconds(0.1), "rule show");
-  	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show");
-  	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 1");
-  	LinuxStackHelper::RunIp (node, Seconds(0.1), "route show table 2");
+  double ShowRuleRoute(const Ptr<Node> node, double timeOffset) {
+
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), "rule show");
+    timeOffset += 0.01;
+  	LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table 0");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table 1");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table 2");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table local");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table main");
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds (timeOffset), "route show table default");
+
+    return timeOffset;
   }
 
-  void NewAssociation (const Ptr<StaWifiMac> staWifiMac, const Mac48Address address) {
-    NS_LOG_INFO (Simulator::Now());
-    NS_LOG_INFO (staWifiMac->GetAddress ());
-    NS_LOG_INFO (address);
-    staWifiMac->SetNewAssociation (address);
+  double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap) {
+
+    double timeOffset = 0.0;
+    // if(oldAP.m_mac != Mac48Address ()) {
+    //   timeOffset = RemoveOldRuleRoute (node, ifIndex, oldAP, timeOffset);
+    // }
+
+    timeOffset = AddrAddLinkUpWithIpIfIndex (node, ap.m_ip, ifIndex, timeOffset + 0.01);
+    timeOffset = RuleRouteUpdateWithIfIndexAp (node, ifIndex, ap, timeOffset + 0.01);
+    timeOffset = RouteAddGlobalWithGatewayIface (node, ap.m_gw, ifIndex, timeOffset + 0.01);
+    timeOffset = ShowRuleRoute(node, timeOffset + 0.01);
+
+    return timeOffset;
+  }
+
+  double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset) {
+    uint32_t nodeId = node->GetId ();
+
+    timeOffset += 0.01;
+  	std::ostringstream oss;
+    oss << "route del " << ap.m_net << "/24 dev sim" << ifIndex << " proto kernel scope link src " << ap.m_ip;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
+
+    timeOffset += 0.01;
+    oss.str ("");
+    oss << "route del broadcast " << ap.m_net << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
+
+    timeOffset += 0.01;
+    oss.str ("");
+    oss << "route del local " << ap.m_ip << " dev sim" << ifIndex << " table local proto kernel scope host src " << ap.m_ip;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
+
+    timeOffset += 0.01;
+    oss.str ("");
+    oss << "route del broadcast " << ap.m_broadcast << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
+    NS_LOG_INFO ("node " << nodeId << ": " << oss.str());
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
+
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), "route del local fe80::200:ff:fe00:f dev lo  table local  proto none  metric 0  pref medium");
+
+    timeOffset += 0.01;
+    LinuxStackHelper::RunIp (node, Seconds(timeOffset), "route del local fe80::200:ff:fe00:10 dev lo  table local  proto none  metric 0  pref medium");
+
+    return timeOffset;
   }
 
   void DoIperf (const Ptr<Node> node) {

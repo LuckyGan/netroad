@@ -11,10 +11,10 @@ namespace ns3 {
 
   struct APInfo {
   	Mac48Address m_mac;
-  	Ipv4Address m_gw, m_ip, m_net;
+  	Ipv4Address m_gw, m_ip, m_net, m_broadcast;
 
-  	APInfo (Mac48Address mac, Ipv4Address gw, Ipv4Address ip, Ipv4Address net):
-      m_mac(mac), m_gw(gw), m_ip(ip), m_net(net) {}
+  	APInfo (Mac48Address mac, Ipv4Address gw, Ipv4Address ip, Ipv4Address net, Ipv4Address broadcast):
+      m_mac(mac), m_gw(gw), m_ip(ip), m_net(net), m_broadcast(broadcast) {}
   };
 
   Ipv4Address BuildIpv4Address (const uint32_t byte0, const uint32_t byte1, const uint32_t byte2, const uint32_t byte3);
@@ -28,14 +28,15 @@ namespace ns3 {
   void RegisterMonitorSnifferRxCallback (const Ptr<NetDevice> device, const CallbackBase &cb);
 
   void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex);
-  void RouteAddWithNetworkGatewayIfIndex(const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex);
-  void AddrAddAndLinkUpWithIpIface (const Ptr<Node> node, const Ipv4Address ip, const std::string iface);
-  void UpdateRuleRouteWithTableIfaceIpNetworkGateway(const Ptr<Node> node, const std::string table, const std::string iface,
-    const Ipv4Address ip, const Ipv4Address net, const Ipv4Address gw);
-  void RouteAddGlobalWithGatewayIface(const Ptr<Node> node, const Ipv4Address gw, const std::string iface);
-  void ShowRuleRoute(const Ptr<Node> node);
+  void RouteAddWithNetworkGatewayIfIndex (const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex);
 
-  void NewAssociation (const Ptr<StaWifiMac> staWifiMac, const Mac48Address address);
+  double AddrAddLinkUpWithIpIfIndex (const Ptr<Node> node, const Ipv4Address ip, const uint32_t ifIndex, double timeOffset);
+  double RuleRouteUpdateWithIfIndexAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset);
+  double RouteAddGlobalWithGatewayIface (const Ptr<Node> node, const Ipv4Address gw, const uint32_t ifIndex, double timeOffset);
+  double ShowRuleRoute(const Ptr<Node> node, double timeOffset);
+
+  double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap);
+  double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset);
   void DoIperf (const Ptr<Node> node);
 }
 

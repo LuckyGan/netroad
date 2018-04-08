@@ -9,8 +9,8 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("NETROAD_HANDOFF");
 
 std::vector<struct APInfo> aps;
-struct APInfo ap1 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
-struct APInfo ap2 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
+struct APInfo ap1 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
+struct APInfo ap2 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
 ApplicationContainer apps;
 NodeContainer staNodes;
 NetDeviceContainer sta2apDevs;
@@ -25,6 +25,7 @@ static void If2MonitorSnifferRx	(Ptr<const Packet> packet,
 	bool isShortPreamble, double signalDbm, double noiseDbm);
 
 int main(int argc, char* argv[]){
+	Packet::EnablePrinting ();
   uint32_t nAPs = 4;
 
   CommandLine cmd;
@@ -32,6 +33,8 @@ int main(int argc, char* argv[]){
 
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
+	// LogComponentEnable("TypeId", LOG_LEVEL_ALL);
+
 
   NS_LOG_INFO ("create nodes");
 
@@ -118,6 +121,7 @@ int main(int argc, char* argv[]){
 
   Ssid ssid = Ssid("NETROAD");
 	wifiMac.SetType("ns3::ApWifiMac", "Ssid", SsidValue(ssid)
+		// "EnableBeaconJitter", BooleanValue(true)
 		// "BeaconGeneration", BooleanValue (false)
 	);
 
@@ -132,7 +136,8 @@ int main(int argc, char* argv[]){
 	wifiMac.SetType("ns3::StaWifiMac",
 									"Ssid", SsidValue (ssid),
 									"ScanType", EnumValue(StaWifiMac::NOTSUPPORT),
-									"ActiveProbing", BooleanValue(false));
+									"ActiveProbing", BooleanValue(false),
+									"MaxMissedBeacons", UintegerValue (1008600));
 
 	for(uint32_t i = 0; i < 2; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(1 + (i % 3) * 5));
@@ -143,10 +148,10 @@ int main(int argc, char* argv[]){
 	}
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&If1Assoc));
-	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
+	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&If1MonitorSnifferRx));
 
 	RegisterAssocCallback(sta2apDevs.Get(1), MakeCallback(&If2Assoc));
-	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
+	RegisterMonitorSnifferRxCallback(sta2apDevs.Get(1), MakeCallback(&If2MonitorSnifferRx));
 
 	wifiPhy.EnablePcapAll("netroad-handoff-wifi", false);
 
@@ -164,15 +169,16 @@ int main(int argc, char* argv[]){
     Ipv4Address gw = BuildIpv4Address(192, 168, i+1, 1);
     Ipv4Address ip = BuildIpv4Address(192, 168, i+1, 2);
     Ipv4Address net = ip.CombineMask(Ipv4Mask("/24"));
+		Ipv4Address broadcast = BuildIpv4Address(192, 168, i+1, 255);
 
     Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice>(ap2staDevs.Get(i));
-    aps.push_back(APInfo(wifiDev->GetMac()->GetAddress(), gw, ip, net));
+    aps.push_back(APInfo(wifiDev->GetMac()->GetAddress(), gw, ip, net, broadcast));
   }
 
   NS_LOG_INFO ("routing");
 
 	RouteAddDefaultWithGatewayIfIndex(srvNodes.Get(0), GetIpv4Address (sw2srvDevs.Get(0)), 0);
-	RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0),Ipv4Address("10.1.1.0"), Ipv4Address("10.1.1.2"), 0);
+	RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0), Ipv4Address("10.1.1.0"), Ipv4Address("10.1.1.2"), 0);
 
 	for(uint32_t i = 0; i < nAPs; i ++){
 		RouteAddWithNetworkGatewayIfIndex(swNodes.Get(0), BuildIpv4Address(192, 168, i+1, 0), GetIpv4Address (ap2swDevs.Get(i)), i+1);
@@ -206,9 +212,8 @@ int main(int argc, char* argv[]){
 	Mac48Address address2 = Mac48Address ("00:00:00:00:00:0c");
 	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(1), &StaWifiMac::SetNewAssociation, staWifiMac2, address2);
 
-	// Mac48Address address3 = Mac48Address ("00:00:00:00:00:0b");
-	// Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(50), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
-
+	Mac48Address address3 = Mac48Address ("00:00:00:00:00:0b");
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(20), &StaWifiMac::SetNewAssociation, staWifiMac1, address3);
 
 	dce.SetBinary ("iperf");
 	dce.ResetArguments ();
@@ -234,26 +239,21 @@ int main(int argc, char* argv[]){
 }
 
 static void
-If1Assoc (Mac48Address address)
-{
+If1Assoc (Mac48Address address) {
   NS_LOG_INFO(Simulator::Now() << " if1: " << address);
-	if(address == ap1.m_mac)
+	if(address == ap1.m_mac){
 		return;
+	}
 
-	for(int i = 0; i < aps.size(); i ++)
-	{
-		if(aps[i].m_mac != address)
+	for(int i = 0; i < aps.size(); i ++) {
+		if(aps[i].m_mac != address){
 			continue;
+		}
 
-		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim0");
-		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "1", "sim0", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
-		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim0");
-		ShowRuleRoute (staNodes.Get(0));
-
+		UpdateNewAp (staNodes.Get(0), 0, ap1, aps[i]);
 		ap1 = aps[i];
 		break;
 	}
-
 	NS_LOG_INFO(Simulator::Now() << " if1: ok");
 }
 
@@ -262,18 +262,16 @@ If2Assoc (Mac48Address address)
 {
   NS_LOG_INFO(Simulator::Now() << " if2: " << address);
 
-	if(address == ap1.m_mac || address == ap2.m_mac)
+	if(address == ap2.m_mac)
 		return;
 
 	for(int i = 0; i < aps.size(); i ++)
 	{
-		if(aps[i].m_mac != address)
+		if(aps[i].m_mac != address) {
 			continue;
+		}
 
-		AddrAddAndLinkUpWithIpIface(staNodes.Get(0), aps[i].m_ip, "sim1");
-		UpdateRuleRouteWithTableIfaceIpNetworkGateway(staNodes.Get(0), "2", "sim1", aps[i].m_ip, aps[i].m_net, aps[i].m_gw);
-		RouteAddGlobalWithGatewayIface(staNodes.Get(0), aps[i].m_gw, "sim1");
-		ShowRuleRoute(staNodes.Get(0));
+		UpdateNewAp (staNodes.Get(0), 1, ap2, aps[i]);
 
 		ap2 = aps[i];
 		break;
@@ -283,24 +281,27 @@ If2Assoc (Mac48Address address)
 }
 
 static void
-If1MonitorSnifferRx	(Ptr<const Packet> packet,
-	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
-	bool isShortPreamble, double signalDbm, double noiseDbm)
-	{
-		Ptr<Packet> p = packet->Copy();
+If1MonitorSnifferRx	(Ptr<const Packet> packet, uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate, 	bool isShortPreamble, double signalDbm, double noiseDbm) {
+	Ptr<Packet> p = packet->Copy();
 
-		WifiMacHeader macHeader;
-		p->RemoveHeader(macHeader);
+	WifiMacHeader macHeader;
+	p->RemoveHeader(macHeader);
 
-		if (macHeader.IsBeacon())
-		{
-			MgtBeaconHeader beaconHeader;
-			p->RemoveHeader (beaconHeader);
-
-			NS_LOG_INFO ("ssid:" << beaconHeader.GetSsid() << ",bssid:" << macHeader.GetAddr3()
-						<< ",signalDbm:" << signalDbm << ",noiseDbm:" << noiseDbm);
-		}
+	if (!macHeader.IsData()){
+		return;
 	}
+
+	LlcSnapHeader llcHeader;
+	p->RemoveHeader (llcHeader);
+
+	if(llcHeader.GetType() != 0x0800) {
+		return;
+	}
+
+	Ipv4Header ipHeader;
+	p->RemoveHeader (ipHeader);
+	// NS_LOG_INFO (ipHeader.GetSource() << " " << ipHeader.GetDestination());
+}
 
 static void
 If2MonitorSnifferRx	(Ptr<const Packet> packet,
@@ -312,12 +313,12 @@ If2MonitorSnifferRx	(Ptr<const Packet> packet,
 		WifiMacHeader macHeader;
 		p->RemoveHeader(macHeader);
 
-		if (macHeader.IsBeacon())
-		{
-			MgtBeaconHeader beaconHeader;
-			p->RemoveHeader (beaconHeader);
-
-			NS_LOG_INFO ("ssid:" << beaconHeader.GetSsid() << ",bssid:" << macHeader.GetAddr3()
-						<< ",signalDbm:" << signalDbm << ",noiseDbm:" << noiseDbm);
-		}
+		// if (macHeader.IsBeacon())
+		// {
+		// 	MgtBeaconHeader beaconHeader;
+		// 	p->RemoveHeader (beaconHeader);
+		//
+		// 	NS_LOG_INFO ("ssid:" << beaconHeader.GetSsid() << ",bssid:" << macHeader.GetAddr3()
+		// 				<< ",signalDbm:" << signalDbm << ",noiseDbm:" << noiseDbm);
+		// }
 	}
