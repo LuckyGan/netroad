@@ -34,7 +34,7 @@ int main(int argc, char* argv[]){
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
 	// LogComponentEnable("TypeId", LOG_LEVEL_ALL);
-	LogComponentEnable("LinuxStackHelper", LOG_LEVEL_ALL);
+	// LogComponentEnable("LinuxStackHelper", LOG_LEVEL_ALL);
 
 
   NS_LOG_INFO ("create nodes");
@@ -131,6 +131,7 @@ int main(int argc, char* argv[]){
 
 		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (ap2staDevs.Get (i));
 		NS_LOG_INFO ("ap: " << wifiDev->GetMac ()->GetAddress() << ", channel: " << wifiDev->GetPhy ()->GetChannelNumber ());
+		NS_LOG_INFO ("sta: " << wifiDev->GetMac ()->GetAddress() << ", frequency: " << wifiDev->GetPhy ()->GetFrequency ());
 	}
 
 	wifiMac.SetType("ns3::StaWifiMac",
@@ -196,8 +197,8 @@ int main(int argc, char* argv[]){
   dce.ResetArguments ();
   dce.ResetEnvironment ();
   dce.AddArgument ("-s");
-  dce.AddArgument ("-P");
-  dce.AddArgument ("1");
+  // dce.AddArgument ("-P");
+  // dce.AddArgument ("1");
 
   apps = dce.Install (srvNodes.Get (0));
 	apps.Start (Seconds (1.0));
