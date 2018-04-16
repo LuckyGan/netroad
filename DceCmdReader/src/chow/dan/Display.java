@@ -9,7 +9,7 @@ import java.util.List;
 
 public class Display {
 	public static void main(String[] args) {
-		File logFolder = new File("/home/dan/ns-3-dce/files-5/var/log");
+		File logFolder = new File("/home/dan/ns-3-dce/files-1/var/log");
 
 		List<DceLog> logs = new ArrayList<>();
 		try {

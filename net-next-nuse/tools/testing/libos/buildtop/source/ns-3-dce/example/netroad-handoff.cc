@@ -3,6 +3,8 @@
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
 #include "netroad-util.h"
+#include "netroad-ap-helper.h"
+#include "netroad-ctl-helper.h"
 
 using namespace ns3;
 
@@ -12,7 +14,7 @@ std::vector<struct APInfo> aps;
 struct APInfo ap1 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
 struct APInfo ap2 = APInfo(Mac48Address(), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"));
 ApplicationContainer apps;
-NodeContainer staNodes;
+NodeContainer srvNodes, staNodes, swNodes;
 NetDeviceContainer sta2apDevs;
 
 static void If1Assoc (Mac48Address address);
@@ -33,13 +35,16 @@ int main(int argc, char* argv[]){
 
   LogComponentEnable("NETROAD_HANDOFF", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
-	// LogComponentEnable("TypeId", LOG_LEVEL_ALL);
+	LogComponentEnable("NetroadApApplication", LOG_LEVEL_ALL);
+	LogComponentEnable("NetroadCtlApplication", LOG_LEVEL_ALL);
+											
+
 	// LogComponentEnable("LinuxStackHelper", LOG_LEVEL_ALL);
 
 
   NS_LOG_INFO ("create nodes");
 
-  NodeContainer srvNodes, swNodes, apNodes;
+  NodeContainer apNodes;
   srvNodes.Create(1);
   swNodes.Create(1);
   apNodes.Create(nAPs);
@@ -188,20 +193,7 @@ int main(int argc, char* argv[]){
 		// LinuxStackHelper::RunIp (apNodes.Get(i), Seconds(10), "route show");
 	}
 
-	NS_LOG_INFO ("apps");
-
-  DceApplicationHelper dce;
-	dce.SetStackSize (1 << 30);
-
-	dce.SetBinary ("iperf");
-  dce.ResetArguments ();
-  dce.ResetEnvironment ();
-  dce.AddArgument ("-s");
-  // dce.AddArgument ("-P");
-  // dce.AddArgument ("1");
-
-  apps = dce.Install (srvNodes.Get (0));
-	apps.Start (Seconds (1.0));
+	NS_LOG_INFO ("handoff");
 
 	Ptr<WifiNetDevice> wifiNetDevice1 = DynamicCast<WifiNetDevice> (sta2apDevs.Get (0));
 	Ptr<StaWifiMac> staWifiMac1 = DynamicCast<StaWifiMac> (wifiNetDevice1->GetMac ());
@@ -214,27 +206,48 @@ int main(int argc, char* argv[]){
 
 
 	Mac48Address address2 = Mac48Address ("00:00:00:00:00:09");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(60), &StaWifiMac::SetNewAssociation, staWifiMac2, address2, 1);
+	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(90), &StaWifiMac::SetNewAssociation, staWifiMac2, address2, 1);
 
-	Mac48Address address3 = Mac48Address ("00:00:00:00:00:0a");
-	Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(90), &StaWifiMac::SetNewAssociation, staWifiMac1, address3, 6);
+	// Mac48Address address3 = Mac48Address ("00:00:00:00:00:0a");
+	// Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(150), &StaWifiMac::SetNewAssociation, staWifiMac1, address3, 6);
 
-	dce.SetBinary ("iperf");
-	dce.ResetArguments ();
-	dce.ResetEnvironment ();
-	dce.AddArgument ("-c");
-	dce.AddArgument ("10.1.1.1");
-	dce.AddArgument ("--time");
-	dce.AddArgument ("500");
+	NS_LOG_INFO ("set");
 
-	apps = dce.Install (staNodes.Get (0));
-	apps.Start (Seconds(3.0));
+	stack.SysctlSet (srvNodes, ".net.ipv6.conf.all.disable_ipv6", "1");
+	stack.SysctlSet (staNodes, ".net.ipv6.conf.all.disable_ipv6", "1");
+	stack.SysctlSet (srvNodes, ".net.ipv6.conf.default.disable_ipv6", "1");
+	stack.SysctlSet (staNodes, ".net.ipv6.conf.default.disable_ipv6", "1");
+
+	stack.SysctlSet (srvNodes, ".net.mptcp.mptcp_debug", "1");
+	stack.SysctlSet (staNodes, ".net.mptcp.mptcp_debug", "1");
+	stack.SysctlSet (srvNodes, ".net.mptcp.mptcp_scheduler", "roundrobin");
+	stack.SysctlSet (staNodes, ".net.mptcp.mptcp_scheduler", "roundrobin");
+	stack.SysctlSet (srvNodes, ".net.mptcp.mptcp_path_manager", "fullmesh");
+	stack.SysctlSet (staNodes, ".net.mptcp.mptcp_path_manager", "fullmesh");
+  stack.SysctlSet (srvNodes, ".net.mptcp.mptcp_checksum", "0");
+	stack.SysctlSet (staNodes, ".net.mptcp.mptcp_checksum", "0");
+
+	NS_LOG_INFO ("apps");
+
+	uint16_t port = 50000;
+	AddressValue sinkLocalAddress (InetSocketAddress (Ipv4Address::GetAny (), port));
+	NetroadCtlHelper sinkHelper;
+	sinkHelper.SetAttribute ("Local", sinkLocalAddress);
+	ApplicationContainer sinkApp = sinkHelper.Install (srvNodes.Get (0));
+	sinkApp.Start (Seconds (1));
+
+	AddressValue remoteAddress (InetSocketAddress (Ipv4Address("10.1.1.1"), port));
+
+	NetroadApHelper apHelper;
+	apHelper.SetAttribute ("Remote", remoteAddress);
+	ApplicationContainer sourceApp = apHelper.Install (apNodes);
+	sourceApp.Start (Seconds (2));
 
   NS_LOG_INFO ("animation");
 
 	AnimationInterface anim("netroad-handoff.xml");
 
-	Simulator::Stop(Seconds(200.0));
+	Simulator::Stop(Seconds(160.0));
 	Simulator::Run();
 	Simulator::Destroy();
 	return 0;
@@ -252,7 +265,8 @@ If1Assoc (Mac48Address address) {
 			continue;
 		}
 
-		UpdateNewAp (staNodes.Get(0), 0, ap1, aps[i]);
+		double timeOffset = UpdateNewAp (staNodes.Get(0), 0, ap1, aps[i]);
+		ShowRuleRoute(swNodes.Get(0), timeOffset);
 		ap1 = aps[i];
 		break;
 	}
@@ -273,8 +287,8 @@ If2Assoc (Mac48Address address)
 			continue;
 		}
 
-		UpdateNewAp (staNodes.Get(0), 1, ap2, aps[i]);
-
+		double timeOffset = UpdateNewAp (staNodes.Get(0), 1, ap2, aps[i]);
+		ShowRuleRoute(swNodes.Get(0), timeOffset);
 		ap2 = aps[i];
 		break;
 	}
