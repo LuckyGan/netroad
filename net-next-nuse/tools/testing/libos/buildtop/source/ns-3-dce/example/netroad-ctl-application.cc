@@ -12,7 +12,7 @@
 #include "ns3/trace-source-accessor.h"
 #include "ns3/udp-socket-factory.h"
 #include "netroad-ctl-application.h"
-#include "stdio.h"
+#include "netroad-util.h"
 
 namespace ns3 {
 
@@ -128,20 +128,6 @@ void NetroadCtlApplication::HandleRead (Ptr<Socket> socket)
   Ptr<Packet> packet;
   Address from;
 
-  // int doubleSize = sizeof(double);
-  // int size = 6 + 4 * doubleSize + 1;
-  // NS_LOG_INFO ("packet size " << size << "bytes");
-  // uint8_t buffer[size];
-  // int cnt = socket->Recv (buffer, size, 0);
-  // NS_LOG_INFO ("recieved " << cnt << "bytes");
-  // Mac48Address mac;
-  // mac.CopyFrom (buffer);
-  // NS_LOG_INFO ("mac:" << mac);
-  // NS_LOG_INFO ("recv:");
-  // for(int j = 0; j < size; j++)
-  //   printf("%02X", buffer[j]);
-  //   printf("\n");
-
   while ((packet = socket->RecvFrom (from)))
     {
       if (packet->GetSize () == 0)
@@ -149,19 +135,29 @@ void NetroadCtlApplication::HandleRead (Ptr<Socket> socket)
           break;
         }
 
+        // 000000000009000000000000144000000000000014400000000000000000000000000000000001
+        int size = sizeof(Mac48Address) + 4 * sizeof(double) + sizeof (uint8_t);
+        uint8_t data[size];
+        packet->CopyData (data, size);
 
-        int doubleSize = sizeof(double);
-        int size = 6 + 4 * doubleSize + 1;
-        NS_LOG_INFO ("packet size " << size << "bytes");
-        uint8_t buffer[size];
-        packet->CopyData (buffer, size);
-
-        NS_LOG_INFO ("recv:");
         for(int j = 0; j < size; j++)
-          printf("%02X", buffer[j]);
+          printf("%02X", data[j]);
         printf("\n");
 
+        ByteBuffer buffer(data, size);
 
+        NS_LOG_INFO ("recv:");
+        Mac48Address mac = buffer.get<Mac48Address>();
+        double x = buffer.get<double>();
+        double y = buffer.get<double>();
+        double vx = buffer.get<double>();
+        double vy = buffer.get<double>();
+        uint8_t channelNumber = buffer.get<uint8_t>();
+
+        NS_LOG_INFO ("mac:" << mac << ", x:" << x << ", y:" << y
+          << ", vx:" << vx << ", vy:" << vy << ", channelNumber:" << static_cast<unsigned int>(channelNumber));
+
+          // TODO put it to vector
 
       m_totalRx += packet->GetSize ();
       if (InetSocketAddress::IsMatchingType (from))

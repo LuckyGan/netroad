@@ -37,6 +37,7 @@ namespace ns3 {
         for (int i=0;i<size;i++){
           put<uint8_t> (arr[i]);
         }
+        pos = 0;
       }
     }
 
@@ -51,9 +52,10 @@ namespace ns3 {
       pos += dataSize;
     }
 
-    template<typename T> T read() const {
+    template<typename T> T get() {
       if (pos + sizeof(T) <= buffer.size()) {
-        return *((T*) &buffer[pos]);
+        pos += sizeof(T);
+        return *((T*) &buffer[pos-sizeof(T)]);
       }
       return 0;
     }

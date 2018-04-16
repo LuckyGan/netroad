@@ -13,6 +13,15 @@ class Address;
 class Socket;
 class Packet;
 
+class ApStats {
+  Mac48Address m_mac;
+  double m_x, m_y, m_vx, m_vy;
+  uint8_t m_channelNumber;
+
+  ApStats (Mac48Address mac, double x, double y, double vx, double vy, uint8_t channelNumber):
+    m_mac(mac), m_x(x), m_y(y), m_vx(vx), m_vy(vy), m_channelNumber(channelNumber){}
+};
+
 class NetroadCtlApplication : public Application
 {
 public:
@@ -46,6 +55,8 @@ private:
   Address         m_local;
   uint32_t        m_totalRx;
   TypeId          m_tid;
+
+  std::vector<ApStats> apStats;
 
   TracedCallback<Ptr<const Packet>, const Address &> m_rxTrace;
 };
