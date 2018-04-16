@@ -17,6 +17,64 @@ namespace ns3 {
       m_mac(mac), m_gw(gw), m_ip(ip), m_net(net), m_broadcast(broadcast) {}
   };
 
+  class ByteBuffer {
+  public:
+    ByteBuffer (int size){
+      buffer = std::vector<uint8_t> ();
+      buffer.reserve(size);
+      clear();
+    }
+
+    ByteBuffer (uint8_t* arr, uint32_t size) {
+      buffer = std::vector<uint8_t> ();
+
+      if (arr == NULL) {
+        buffer.reserve(size);
+        clear();
+      } else {
+        buffer.reserve(size);
+        clear();
+        for (int i=0;i<size;i++){
+          put<uint8_t> (arr[i]);
+        }
+      }
+    }
+
+    template<typename T> void put (T data){
+      uint32_t dataSize = sizeof(data);
+
+      if(buffer.size() < pos + dataSize) {
+        buffer.resize(pos + dataSize);
+      }
+
+      memcpy(&buffer[pos], (uint8_t*) &data, dataSize);
+      pos += dataSize;
+    }
+
+    template<typename T> T read() const {
+      if (pos + sizeof(T) <= buffer.size()) {
+        return *((T*) &buffer[pos]);
+      }
+      return 0;
+    }
+
+    std::vector<uint8_t> getVector() {
+      return buffer;
+    }
+
+    ~ByteBuffer() { }
+
+
+  private:
+    std::vector<uint8_t> buffer;
+    uint32_t pos;
+
+    void clear() {
+      pos = 0;
+      buffer.clear();
+    }
+  };
+
   Ipv4Address BuildIpv4Address (const uint32_t byte0, const uint32_t byte1, const uint32_t byte2, const uint32_t byte3);
   void SetIpv4Address (const Ptr<NetDevice> device, const Ipv4Address address, const Ipv4Mask mask);
   Ipv4Address GetIpv4Address (const Ptr<NetDevice> device);

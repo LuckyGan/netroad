@@ -11,6 +11,7 @@
 #include "ns3/trace-source-accessor.h"
 #include "ns3/tcp-socket-factory.h"
 #include "netroad-ap-application.h"
+#include "netroad-util.h"
 
 namespace ns3 {
 
@@ -113,33 +114,18 @@ void NetroadApApplication::SendData (void)
 
   NS_LOG_LOGIC ("sending packet at " << Simulator::Now ());
 
-
+  // 000000000009000000000000144000000000000014400000000000000000000000000000000001
   int size = sizeof(Mac48Address) + 4 * sizeof(double) + sizeof (uint8_t);
-  uint8_t buffer[size];
-  int offset = 0;
-  wifiDev->GetMac ()->GetAddress().CopyTo (buffer);
-  offset += 6;
-  double pX = m->GetPosition().x;
-  memcpy (buffer+offset, &pX, sizeof(double));
-  offset += sizeof(double);
-  double pY = m->GetPosition().y;
-  memcpy (buffer+offset, &pY, sizeof(double));
-  offset += sizeof(double);
-  double vX = m->GetVelocity().x;
-  memcpy (buffer+offset, &vX, sizeof(double));
-  offset += sizeof (double);
-  double vY = m->GetVelocity().y;
-  memcpy (buffer+offset, &vY, sizeof(double));
-  offset += sizeof (double);
-  uint8_t channelNumber = wifiDev->GetPhy ()->GetChannelNumber ();
-  memcpy (buffer+offset, &channelNumber, sizeof (uint8_t));
+  ByteBuffer buffer (size);
+  buffer.put<Mac48Address> (wifiDev->GetMac ()->GetAddress());
+  buffer.put<double> (m->GetPosition().x);
+  buffer.put<double> (m->GetPosition().y);
+  buffer.put<double> (m->GetVelocity().x);
+  buffer.put<double> (m->GetVelocity().y);
+  buffer.put<uint8_t> (wifiDev->GetPhy ()->GetChannelNumber ());
+  std::vector<uint8_t> data = buffer.getVector();
 
-  NS_LOG_INFO ("send:");
-  for(int j = 0; j < size; j++)
-    printf("%02X", buffer[j]);
-  printf("\n");
-
-  int actual = m_socket->Send (buffer, size, 0);
+  int actual = m_socket->Send (&data[0], size, 0);
 
   NS_LOG_INFO ("send " << actual << " bytes, expected " << size << " bytes");
 }
