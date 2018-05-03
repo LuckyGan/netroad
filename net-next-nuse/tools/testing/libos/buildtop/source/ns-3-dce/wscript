@@ -386,26 +386,15 @@ def build_dce_examples(module, bld):
                            use=['ASPECT'],
                            source=['example/dce-debug-aspect.cc'])
 
-#    module.add_example(needed = ['core', 'internet', 'dce', 'point-to-point', 'netanim'],
-#                       target='bin/dce-xorp-simple',
-#                       source=['example/xorp/dce-xorp-simple.cc', 'example/ccnx/misc-tools.cc'])
-
-#    module.add_example(needed = ['core', 'internet', 'dce', 'csma' ],
-#                       target='bin/dce-udp-multicast',
-#                       source=['example/dce-udp-multicast.cc'])
-#    module.add_example(needed = ['core', 'dce', ],
-#                       target='bin/dce-cout-bug',
-#                       source=['example/dce-cout-bug.cc'])
-
 def build_dce_kernel_examples(module, bld):
 
     module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
                        target='bin/netroad-handoff',
                        source=['example/netroad-handoff.cc', 'example/netroad-util.cc', 'example/netroad-ctl-application.cc', 'example/netroad-ctl-helper.cc', 'example/netroad-ap-application.cc', 'example/netroad-ap-helper.cc'])
 
-    # module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
-    #                    target='bin/netroad-mptcp',
-    #                    source=['example/netroad-mptcp.cc', 'example/netroad-util.cc'])
+    module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
+                       target='bin/netroad-mptcp',
+                       source=['example/netroad-mptcp.cc', 'example/netroad-util.cc', 'example/netroad-ctl-application.cc', 'example/netroad-ctl-helper.cc', 'example/netroad-ap-application.cc', 'example/netroad-ap-helper.cc'])
 
     module.add_example(needed = ['core', 'internet', 'dce', 'point-to-point'],
                        target='bin/dce-udp-perf',
