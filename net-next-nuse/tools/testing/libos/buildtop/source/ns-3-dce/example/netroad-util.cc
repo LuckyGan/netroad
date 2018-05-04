@@ -63,7 +63,6 @@ namespace ns3 {
     std::ostringstream oss;
     oss << "/NodeList/" << node->GetId()
         << "/$ns3::MobilityModel/CourseChange";
-    NS_LOG_INFO (node->GetId() << ":" << oss.str());
     Config::ConnectWithoutContext(oss.str().c_str(), cb);
   }
 
@@ -181,5 +180,46 @@ namespace ns3 {
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     return timeOffset;
+  }
+
+  double GetThroughput(double d) {
+    double rssi = -37.2894 - 30 * log10 (d);
+    return m_B * log2 (1 + pow (10, (100-rssi)/10));
+  }
+
+  double GetDistance (double x1, double y1, double x2, double y2) {
+    return sqrt ((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+  }
+
+  APStats CalculateApStats(Ptr<NetDevice> device, Ptr<Node> sta) {
+
+    Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (device);
+
+    Ptr<Node> ap = wifiDev->GetNode();
+    Ptr <ConstantVelocityMobilityModel> apModel = ap->GetObject<ConstantVelocityMobilityModel>();
+    Vector pAp = apModel->GetPosition ();
+    Vector vAp = apModel->GetVelocity ();
+
+    Ptr <ConstantPositionMobilityModel> staModel = sta->GetObject<ConstantPositionMobilityModel>();
+    Vector pSta = staModel->GetPosition ();
+
+    double x1 = pAp.x, y1 = pAp.y, x2 = pSta.x, y2 = pSta.y;
+    double distance = GetDistance (x1, y1, x2, y2);
+
+    if(distance > m_R) {
+      APStats stats = APStats(wifiDev->GetMac ()->GetAddress(), 0, 0);
+      return stats;
+    }
+
+    APStats stats = APStats(wifiDev->GetMac ()->GetAddress(), 0, 0);
+    do {
+      stats.m_throughput += 0.05 * GetThroughput (distance);
+      stats.m_time += 0.05;
+      x1 += vAp.x * 0.05;
+      y1 += vAp.y * 0.05;
+      distance = GetDistance (x1, y1, x2, y2);
+    } while(distance < m_R);
+
+    return stats;
   }
 }

@@ -6,8 +6,12 @@
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/wifi-module.h"
+#include <math.h>
 
 namespace ns3 {
+  static double m_B = 5000000.0;
+  static double m_R = 100.0;
+  static double m_T = 1;
 
   struct APInfo {
   	Ptr<WifiNetDevice> device;
@@ -15,6 +19,16 @@ namespace ns3 {
 
   	APInfo (Ptr<WifiNetDevice> device, Ipv4Address gw, Ipv4Address ip, Ipv4Address net, Ipv4Address broadcast):
       device(device), m_gw(gw), m_ip(ip), m_net(net), m_broadcast(broadcast) {}
+  };
+
+  struct APStats {
+    Mac48Address m_mac;
+    double m_throughput;
+    double m_time;
+    double m_rank;
+
+    APStats(Mac48Address mac, double throughput, double time):
+      m_mac(mac), m_throughput(throughput), m_time(time) {}
   };
 
   class ByteBuffer {
@@ -97,6 +111,8 @@ namespace ns3 {
   double ShowRuleRoute(const Ptr<Node> node, double timeOffset);
   double RemoveIpv4Address(const Ptr<Node> node, const uint32_t ifIndex, const Ipv4Address ip, double timeOffset);
   double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap);
+
+  APStats CalculateApStats(Ptr<NetDevice> device, Ptr<Node> sta);
 }
 
 #endif

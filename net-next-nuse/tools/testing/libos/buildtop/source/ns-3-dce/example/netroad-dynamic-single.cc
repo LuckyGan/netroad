@@ -17,23 +17,54 @@ struct APInfo ap = APInfo(NULL, Ipv4Address("0.0.0.0"), Ipv4Address("0.0.0.0"), 
 Ptr<StaWifiMac> staWifiMac = NULL;
 
 NodeContainer staNodes;
+NetDeviceContainer ap2staDevs;
 ApplicationContainer container;
 
 double velocity = 20;
 
 static void IfAssoc (Mac48Address address);
-static void CourseChanged(Ptr<const MobilityModel> model);
+static void IfMonitorSnifferRx	(Ptr<const Packet> packet,
+	uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate,
+	bool isShortPreamble, double signalDbm, double noiseDbm);
 
-static void CheckHorizonPosition(Ptr<Node> node){
-	Ptr <ConstantVelocityMobilityModel> model = node->GetObject<ConstantVelocityMobilityModel>();
-	Vector pos = model->GetPosition ();
-	if(pos.x >= 420) {
-		SetPositionVelocity(node, Vector3D (pos.x - 420, 210, 0), Vector(velocity, 0, 0));
-	}
-	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, node);
-}
+static void CourseChanged(Ptr<const MobilityModel> model);
+static void CheckHorizonPosition(Ptr<Node> node);
+
+static bool CompareAP (APStats a, APStats b) { return (a.m_rank > b.m_rank); }
 
 static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac48Address mac);
+
+static void GuidedAssociate(){
+	std::vector<APStats> stats;
+	for (uint32_t i = 0; i < ap2staDevs.GetN (); i++) {
+		APStats s = CalculateApStats(ap2staDevs.Get(i), staNodes.Get(0));
+		if (s.m_time > 1 && s.m_throughput > 1000000) {
+			s.m_rank = s.m_throughput / m_B / 100 + s.m_time / 0.05;
+			stats.push_back(s);
+		}
+	}
+
+	std::sort (stats.begin(), stats.end(), CompareAP);
+
+	NS_LOG_INFO ("avalialbe");
+	bool stillok = false;
+	for(uint32_t i=0; i<stats.size(); i++){
+		NS_LOG_INFO ("mac:" << stats[i].m_mac << ", thruput:" << stats[i].m_throughput << ", time:" << stats[i].m_time);
+		if(stats[0].m_mac == ap.device->GetMac ()->GetAddress()) {
+			Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
+			return;
+		}
+	}
+
+	if (stats.size() > 0 && stats[0].m_mac != ap.device->GetMac ()->GetAddress()) {
+			uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
+
+			Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
+				aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
+	}
+
+	Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
+}
 
 int main(int argc, char* argv[]){
 
@@ -44,17 +75,19 @@ int main(int argc, char* argv[]){
 	uint32_t nBusPerRoad = 3;
 	uint32_t nApsH = nBusPerRoad;
 	uint32_t nAps = nApsH;
-	bool manual = false;
+	bool manual = true;
 
   CommandLine cmd;
 	cmd.Parse(argc, argv);
 
   LogComponentEnable("NETROAD_DYNAMIC_SINGLE", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
+	// LogComponentEnable("YansWifiChannel", LOG_LEVEL_ALL);
+	// LogComponentEnable("StaWifiMac", LOG_LEVEL_ALL);
 
   NS_LOG_INFO ("create nodes");
 
-	NodeContainer srvNodes, swNodes, apNodes, apNodesH;
+	NodeContainer srvNodes, swNodes, apNodesH, apNodes;
   srvNodes.Create(1);
   swNodes.Create(1);
 	apNodes.Create(nAps);
@@ -117,7 +150,7 @@ int main(int argc, char* argv[]){
 
   NS_LOG_INFO ("install devices");
 
-  NetDeviceContainer srv2swDevs, sw2srvDevs, sw2apDevs, ap2swDevs,sta2apDevs, ap2staDevs;
+  NetDeviceContainer srv2swDevs, sw2srvDevs, sw2apDevs, ap2swDevs,sta2apDevs;
 
   PointToPointHelper p2p;
 	p2p.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
@@ -162,12 +195,21 @@ int main(int argc, char* argv[]){
 		NS_LOG_INFO ("ap mac:" << wifiDev->GetMac ()->GetAddress() << ", channel: " << wifiDev->GetPhy ()->GetChannelNumber () << ", frequency: " << wifiDev->GetPhy ()->GetFrequency ());
 	}
 
-	wifiMac.SetType(
-		"ns3::StaWifiMac",
-		"Ssid", SsidValue (ssid),
-		"ScanType", EnumValue(StaWifiMac::ACTIVE),
-		"ActiveProbing", BooleanValue(true),
-		"MaxMissedBeacons", UintegerValue (8));
+	if(manual) {
+		wifiMac.SetType(
+			"ns3::StaWifiMac",
+			"Ssid", SsidValue (ssid),
+			"ScanType", EnumValue(StaWifiMac::NOTSUPPORT),
+			"ActiveProbing", BooleanValue(false),
+			"MaxMissedBeacons", UintegerValue (10086));
+	} else {
+		wifiMac.SetType(
+			"ns3::StaWifiMac",
+			"Ssid", SsidValue (ssid),
+			"ScanType", EnumValue(StaWifiMac::ACTIVE),
+			"ActiveProbing", BooleanValue(true),
+			"MaxMissedBeacons", UintegerValue (8));
+	}
 
 	for(uint32_t i = 0; i < 1; i++) {
 		wifiPhy.Set("ChannelNumber", UintegerValue(6));
@@ -178,6 +220,7 @@ int main(int argc, char* argv[]){
 	}
 
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&IfAssoc));
+	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&IfMonitorSnifferRx));
 
 	wifiPhy.EnablePcapAll("netroad-dynamic-single-wifi", false);
 
@@ -246,8 +289,13 @@ int main(int argc, char* argv[]){
 
 	sender = DynamicCast<BulkSendApplication> (container.Get (0));
 
+	if(manual) {
+		Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
+	}
+
+
 	NS_LOG_INFO ("animation");
-	AnimationInterface anim("netroad-dynamic-single.xml");
+	// AnimationInterface anim("netroad-dynamic-single.xml");
 
 	Simulator::Stop(Seconds(40.0));
 	Simulator::Run();
@@ -274,6 +322,11 @@ IfAssoc (Mac48Address address) {
 	NS_LOG_INFO(Simulator::Now() << " if: ok");
 }
 
+static void
+IfMonitorSnifferRx	(Ptr<const Packet> packet, uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate, 	bool isShortPreamble, double signalDbm, double noiseDbm) {
+	NS_LOG_INFO ("noise" << noiseDbm);
+}
+
 static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac48Address mac) {
 	for(uint32_t i = 0; i < aps.size(); i ++) {
 		if(aps[i].device->GetMac ()->GetAddress() == mac) {
@@ -287,4 +340,13 @@ static void CourseChanged(Ptr<const MobilityModel> model) {
 	Ptr<Node> node = model->GetObject<Node>();
 	Vector pos = model->GetPosition ();
 	NS_LOG_INFO (node->GetId() << " x:" << pos.x << ",y:" << pos.y << ", time:" << Simulator::Now());
+}
+
+static void CheckHorizonPosition(Ptr<Node> node){
+	Ptr <ConstantVelocityMobilityModel> model = node->GetObject<ConstantVelocityMobilityModel>();
+	Vector pos = model->GetPosition ();
+	if(pos.x >= 420) {
+		SetPositionVelocity(node, Vector3D (pos.x - 420, 210, 0), Vector(velocity, 0, 0));
+	}
+	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, node);
 }

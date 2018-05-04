@@ -9,6 +9,8 @@ import java.util.List;
 
 public class Display {
 	public static void main(String[] args) {
+		System.out.println(2e6);
+
 		File logFolder = new File("/home/dan/ns-3-dce/files-5/var/log");
 
 		List<DceLog> logs = new ArrayList<>();
