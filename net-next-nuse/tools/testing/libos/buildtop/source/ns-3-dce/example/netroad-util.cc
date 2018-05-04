@@ -59,6 +59,14 @@ namespace ns3 {
   	Config::ConnectWithoutContext(oss.str().c_str(), cb);
   }
 
+  void RegisterCourseChangeCallback (const Ptr<Node> node, const CallbackBase &cb) {
+    std::ostringstream oss;
+    oss << "/NodeList/" << node->GetId()
+        << "/$ns3::MobilityModel/CourseChange";
+    NS_LOG_INFO (node->GetId() << ":" << oss.str());
+    Config::ConnectWithoutContext(oss.str().c_str(), cb);
+  }
+
   void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex) {
     std::ostringstream oss;
     oss << "route add default via " << gateway << " dev sim" << ifIndex;

@@ -19,9 +19,19 @@ Ptr<StaWifiMac> staWifiMac = NULL;
 NodeContainer staNodes;
 ApplicationContainer container;
 
-bool started = false;
+double velocity = 20;
 
 static void IfAssoc (Mac48Address address);
+static void CourseChanged(Ptr<const MobilityModel> model);
+
+static void CheckHorizonPosition(Ptr<Node> node){
+	Ptr <ConstantVelocityMobilityModel> model = node->GetObject<ConstantVelocityMobilityModel>();
+	Vector pos = model->GetPosition ();
+	if(pos.x >= 420) {
+		SetPositionVelocity(node, Vector3D (pos.x - 420, 210, 0), Vector(velocity, 0, 0));
+	}
+	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, node);
+}
 
 static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac48Address mac);
 
@@ -41,8 +51,6 @@ int main(int argc, char* argv[]){
 
   LogComponentEnable("NETROAD_DYNAMIC_SINGLE", LOG_LEVEL_ALL);
   LogComponentEnable("NETROAD_UTIL", LOG_LEVEL_ALL);
-	// LogComponentEnable("BulkSendApplication", LOG_LEVEL_ALL);
-	// LogComponentEnable("Socket", LOG_LEVEL_ALL);
 
   NS_LOG_INFO ("create nodes");
 
@@ -74,12 +82,15 @@ int main(int argc, char* argv[]){
 	mobility.Install(staNodes);
 	SetPosition(srvNodes.Get(0), Vector(0, 0, 0));
 	SetPosition(swNodes.Get(0), Vector(5, 5, 0));
-	SetPosition(staNodes.Get(0), Vector(150, 150, 0));
+	SetPosition(staNodes.Get(0), Vector(210, 210, 0));
 
 	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
 	mobility.Install(apNodes);
+
 	for(uint32_t i = 0; i < nApsH; i ++) {
-		SetPositionVelocity(apNodesH.Get(i), Vector(i * 300 / nBusPerRoad, 150, 0), Vector(10, 0, 0));
+		SetPositionVelocity(apNodesH.Get(i), Vector(i * 420 / nBusPerRoad, 210, 0), Vector(velocity, 0, 0));
+		RegisterCourseChangeCallback(apNodesH.Get(i), MakeCallback(&CourseChanged));
+		Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, apNodesH.Get(i));
 	}
 
   NS_LOG_INFO ("install stack");
@@ -233,10 +244,6 @@ int main(int argc, char* argv[]){
 	container = bulk.Install(staNodes.Get(0));
 	container.Start(Seconds(10086));
 
-
-	// container.Stop(Seconds(16.5));
-	// container.Start(Seconds(16.6));
-
 	sender = DynamicCast<BulkSendApplication> (container.Get (0));
 
 	NS_LOG_INFO ("animation");
@@ -255,8 +262,6 @@ IfAssoc (Mac48Address address) {
 		return;
 	}
 
-
-
 	uint32_t newIdx = getIndexByMac(aps, address);
 	NS_LOG_INFO (aps[newIdx].m_ip);
 	double timeOffset = UpdateNewAp (staNodes.Get(0), 0, ap, aps[newIdx]);
@@ -265,8 +270,6 @@ IfAssoc (Mac48Address address) {
 	sender->Pause();
 	sender->SetStartTime(Seconds(timeOffset));
 	sender->Restart();
-
-	started = true;
 
 	NS_LOG_INFO(Simulator::Now() << " if: ok");
 }
@@ -278,4 +281,10 @@ static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac4
 		}
 	}
 	return aps.size();
+}
+
+static void CourseChanged(Ptr<const MobilityModel> model) {
+	Ptr<Node> node = model->GetObject<Node>();
+	Vector pos = model->GetPosition ();
+	NS_LOG_INFO (node->GetId() << " x:" << pos.x << ",y:" << pos.y << ", time:" << Simulator::Now());
 }

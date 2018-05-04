@@ -86,6 +86,7 @@ namespace ns3 {
 
   void RegisterAssocCallback(Ptr<NetDevice> device,const CallbackBase &cb);
   void RegisterMonitorSnifferRxCallback (const Ptr<NetDevice> device, const CallbackBase &cb);
+  void RegisterCourseChangeCallback (const Ptr<Node> node, const CallbackBase &cb);
 
   void RouteAddDefaultWithGatewayIfIndex (const Ptr<Node> node, const Ipv4Address gateway, const uint32_t ifIndex);
   void RouteAddWithNetworkGatewayIfIndex (const Ptr<Node> node, const Ipv4Address network, const Ipv4Address gateway, const uint32_t ifIndex);
