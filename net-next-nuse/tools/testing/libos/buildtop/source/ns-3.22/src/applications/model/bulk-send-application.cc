@@ -108,6 +108,24 @@ BulkSendApplication::DoDispose (void)
   Application::DoDispose ();
 }
 
+void BulkSendApplication::Pause (void) {
+  NS_LOG_FUNCTION (this);
+  m_socket = 0;
+  m_connected = false;
+
+  m_startEvent.Cancel ();
+  m_stopEvent.Cancel ();
+}
+
+void BulkSendApplication::Restart (void) {
+  NS_LOG_FUNCTION (this);
+  m_startEvent = Simulator::Schedule (m_startTime, &BulkSendApplication::StartApplication, this);
+  if (m_stopTime != TimeStep (0))
+    {
+      m_stopEvent = Simulator::Schedule (m_stopTime, &BulkSendApplication::StopApplication, this);
+    }
+}
+
 // Application Methods
 void BulkSendApplication::StartApplication (void) // Called at time specified by Start
 {
@@ -141,6 +159,9 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
       m_socket->SetConnectCallback (
         MakeCallback (&BulkSendApplication::ConnectionSucceeded, this),
         MakeCallback (&BulkSendApplication::ConnectionFailed, this));
+      m_socket->SetCloseCallbacks (
+        MakeCallback (&BulkSendApplication::NormalClose, this),
+        MakeCallback (&BulkSendApplication::ErrorClose, this));
       m_socket->SetSendCallback (
         MakeCallback (&BulkSendApplication::DataSend, this));
     }
@@ -226,6 +247,18 @@ void BulkSendApplication::DataSend (Ptr<Socket>, uint32_t)
     { // Only send new data if the connection has completed
       Simulator::ScheduleNow (&BulkSendApplication::SendData, this);
     }
+}
+
+void BulkSendApplication::NormalClose (Ptr<Socket> socket)
+{
+  NS_LOG_FUNCTION (this << socket);
+  NS_LOG_LOGIC (Simulator::Now() << " BulkSendApplication NormalClose");
+}
+
+void BulkSendApplication::ErrorClose (Ptr<Socket> socket)
+{
+  NS_LOG_FUNCTION (this << socket);
+  NS_LOG_LOGIC (Simulator::Now() << " BulkSendApplication ErrorClose");
 }
 
 

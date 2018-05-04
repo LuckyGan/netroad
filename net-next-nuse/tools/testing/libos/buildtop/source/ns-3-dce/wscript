@@ -392,9 +392,9 @@ def build_dce_kernel_examples(module, bld):
     #                    target='bin/netroad-handoff',
     #                    source=['example/netroad-handoff.cc', 'example/netroad-util.cc', 'example/netroad-ctl-application.cc', 'example/netroad-ctl-helper.cc', 'example/netroad-ap-application.cc', 'example/netroad-ap-helper.cc'])
     #
-    # module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
-    #                    target='bin/netroad-mptcp',
-    #                    source=['example/netroad-mptcp.cc', 'example/netroad-util.cc', 'example/netroad-ctl-application.cc', 'example/netroad-ctl-helper.cc', 'example/netroad-ap-application.cc', 'example/netroad-ap-helper.cc'])
+    module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
+                       target='bin/netroad-dynamic-single',
+                       source=['example/netroad-dynamic-single.cc', 'example/netroad-util.cc'])
 
     module.add_example(needed = ['core', 'network', 'dce', 'point-to-point', 'mobility', 'netanim', 'applications'],
                        target='bin/netroad-static',
