@@ -10,11 +10,11 @@
 namespace ns3 {
 
   struct APInfo {
-  	Mac48Address m_mac;
+  	Ptr<WifiNetDevice> device;
   	Ipv4Address m_gw, m_ip, m_net, m_broadcast;
 
-  	APInfo (Mac48Address mac, Ipv4Address gw, Ipv4Address ip, Ipv4Address net, Ipv4Address broadcast):
-      m_mac(mac), m_gw(gw), m_ip(ip), m_net(net), m_broadcast(broadcast) {}
+  	APInfo (Ptr<WifiNetDevice> device, Ipv4Address gw, Ipv4Address ip, Ipv4Address net, Ipv4Address broadcast):
+      device(device), m_gw(gw), m_ip(ip), m_net(net), m_broadcast(broadcast) {}
   };
 
   class ByteBuffer {
@@ -96,8 +96,6 @@ namespace ns3 {
   double ShowRuleRoute(const Ptr<Node> node, double timeOffset);
   double RemoveIpv4Address(const Ptr<Node> node, const uint32_t ifIndex, const Ipv4Address ip, double timeOffset);
   double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap);
-  double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset);
-  void DoIperf (const Ptr<Node> node);
 }
 
 #endif

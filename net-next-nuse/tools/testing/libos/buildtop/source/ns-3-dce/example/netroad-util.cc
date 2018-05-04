@@ -155,11 +155,10 @@ namespace ns3 {
   double UpdateNewAp (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo oldAP, const struct APInfo ap) {
 
     double timeOffset = 0.0;
-    if(oldAP.m_mac != Mac48Address ()) {
+    if(oldAP.device != NULL) {
       timeOffset = RemoveIpv4Address (node, ifIndex, oldAP.m_ip, timeOffset + 0.01);
-      // timeOffset = RemoveOldRuleRoute (node, ifIndex, oldAP, timeOffset);
     }
-    
+
     timeOffset = AddrAddLinkUpWithIpIfIndex (node, ap.m_ip, ifIndex, timeOffset + 0.01);
     timeOffset = RuleRouteUpdateWithIfIndexAp (node, ifIndex, ap, timeOffset + 0.01);
     timeOffset = RouteAddGlobalWithGatewayIface (node, ap.m_gw, ifIndex, timeOffset + 0.01);
@@ -174,55 +173,5 @@ namespace ns3 {
     LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
 
     return timeOffset;
-  }
-
-  double RemoveOldRuleRoute (const Ptr<Node> node, const uint32_t ifIndex, const struct APInfo ap, double timeOffset) {
-    uint32_t nodeId = node->GetId ();
-
-  	std::ostringstream oss;
-    oss << "route del " << ap.m_net << "/24 dev sim" << ifIndex << " proto kernel scope link src " << ap.m_ip;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
-
-    timeOffset += 0.01;
-    oss.str ("");
-    oss << "route del broadcast " << ap.m_net << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
-
-    timeOffset += 0.01;
-    oss.str ("");
-    oss << "route del local " << ap.m_ip << " dev sim" << ifIndex << " table local proto kernel scope host src " << ap.m_ip;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
-
-    timeOffset += 0.01;
-    oss.str ("");
-    oss << "route del broadcast " << ap.m_broadcast << " dev sim" << ifIndex << " table local proto kernel scope link src " << ap.m_ip;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), oss.str ());
-
-    timeOffset += 0.01;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), "route del local fe80::200:ff:fe00:f dev lo  table local  proto none  metric 0  pref medium");
-
-    timeOffset += 0.01;
-    LinuxStackHelper::RunIp (node, Seconds(timeOffset), "route del local fe80::200:ff:fe00:10 dev lo  table local  proto none  metric 0  pref medium");
-
-    return timeOffset;
-  }
-
-  void DoIperf (const Ptr<Node> node) {
-    DceApplicationHelper dce;
-    dce.SetStackSize (1 << 30);
-
-    dce.SetBinary ("iperf");
-    dce.ResetArguments ();
-    dce.ResetEnvironment ();
-    dce.AddArgument ("-c");
-    dce.AddArgument ("10.1.1.1");
-    dce.AddArgument ("-i");
-    dce.AddArgument ("1");
-    dce.AddArgument ("--time");
-    dce.AddArgument ("20");
-
-    // ApplicationContainer apps = dce.Install (node);
-    // NS_LOG_INFO (Simulator::Now());
-    // apps.Start (Simulator::Now());
   }
 }
