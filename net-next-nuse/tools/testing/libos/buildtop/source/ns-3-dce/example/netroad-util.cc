@@ -183,8 +183,12 @@ namespace ns3 {
   }
 
   double GetThroughput(double d) {
-    double rssi = -37.2894 - 30 * log10 (d);
-    return m_B * log2 (1 + pow (10, (100-rssi)/10));
+    double rssi = -37.2894;
+    if(d > 1) {
+      rssi = -37.2894 - 30 * log10 (d);
+    }
+
+    return m_B * log2 (1 + pow (10, (100+rssi)/10));
   }
 
   double GetDistance (double x1, double y1, double x2, double y2) {

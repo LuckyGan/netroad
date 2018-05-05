@@ -9,7 +9,7 @@
 #include <math.h>
 
 namespace ns3 {
-  static double m_B = 5000000.0;
+  static double m_B = 20000000.0;
   static double m_R = 100.0;
   static double m_T = 1;
 

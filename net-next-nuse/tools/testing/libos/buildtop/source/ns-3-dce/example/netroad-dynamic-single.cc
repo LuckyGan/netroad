@@ -20,7 +20,8 @@ NodeContainer staNodes;
 NetDeviceContainer ap2staDevs;
 ApplicationContainer container;
 
-double velocity = 20;
+double velocity = 10;
+uint32_t nBusPerRoad = 3;
 
 static void IfAssoc (Mac48Address address);
 static void IfMonitorSnifferRx	(Ptr<const Packet> packet,
@@ -39,7 +40,7 @@ static void GuidedAssociate(){
 	for (uint32_t i = 0; i < ap2staDevs.GetN (); i++) {
 		APStats s = CalculateApStats(ap2staDevs.Get(i), staNodes.Get(0));
 		if (s.m_time > 1 && s.m_throughput > 1000000) {
-			s.m_rank = s.m_throughput / m_B / 100 + s.m_time / 0.05;
+			s.m_rank = s.m_throughput / m_B / 100 +  s.m_time;
 			stats.push_back(s);
 		}
 	}
@@ -47,9 +48,19 @@ static void GuidedAssociate(){
 	std::sort (stats.begin(), stats.end(), CompareAP);
 
 	NS_LOG_INFO ("avalialbe");
-	bool stillok = false;
 	for(uint32_t i=0; i<stats.size(); i++){
-		NS_LOG_INFO ("mac:" << stats[i].m_mac << ", thruput:" << stats[i].m_throughput << ", time:" << stats[i].m_time);
+		NS_LOG_INFO ("mac:" << stats[i].m_mac << ", thruput:" << stats[i].m_throughput << ", time:" << stats[i].m_time << ", rank:" << stats[i].m_rank);
+	}
+
+	if(ap.device == NULL){
+		uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
+		Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
+			aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
+		Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
+		return;
+	}
+
+	for(uint32_t i=0; i<stats.size(); i++){
 		if(stats[0].m_mac == ap.device->GetMac ()->GetAddress()) {
 			Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
 			return;
@@ -72,7 +83,6 @@ int main(int argc, char* argv[]){
   Config::SetDefault ("ns3::LogDistancePropagationLossModel::Exponent", DoubleValue (3));
 
 	Packet::EnablePrinting ();
-	uint32_t nBusPerRoad = 3;
 	uint32_t nApsH = nBusPerRoad;
 	uint32_t nAps = nApsH;
 	bool manual = true;
@@ -345,8 +355,8 @@ static void CourseChanged(Ptr<const MobilityModel> model) {
 static void CheckHorizonPosition(Ptr<Node> node){
 	Ptr <ConstantVelocityMobilityModel> model = node->GetObject<ConstantVelocityMobilityModel>();
 	Vector pos = model->GetPosition ();
-	if(pos.x >= 420) {
-		SetPositionVelocity(node, Vector3D (pos.x - 420, 210, 0), Vector(velocity, 0, 0));
+	if(abs(pos.x - 420) < 1) {
+		SetPositionVelocity(node, Vector3D (0, 210, 0), Vector(velocity, 0, 0));
 	}
 	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, node);
 }
