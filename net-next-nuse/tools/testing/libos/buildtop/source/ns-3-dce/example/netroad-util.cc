@@ -183,8 +183,8 @@ namespace ns3 {
   }
 
   double GetThroughput(double d) {
-    double rssi = -37.2894;
-    if(d > 1) {
+    double rssi = -75;
+    if(d > 30) {
       rssi = -37.2894 - 30 * log10 (d);
     }
 
@@ -216,13 +216,35 @@ namespace ns3 {
     }
 
     APStats stats = APStats(wifiDev->GetMac ()->GetAddress(), 0, 0);
+    std::vector<double> deltas;
+    double delta = 0.0, timeInterval = 0.0, total = 0.0;
+
     do {
-      stats.m_throughput += 0.05 * GetThroughput (distance);
+      delta = 0.05 * GetThroughput (distance);
+      timeInterval += 0.05;
+      total += delta;
+
+      if( std::abs(timeInterval - 1.0) < 1e-6 ) {
+        deltas.push_back (total);
+
+        total = 0.0;
+        timeInterval = 0.0;
+      }
+
+      stats.m_throughput += delta;
       stats.m_time += 0.05;
       x1 += vAp.x * 0.05;
       y1 += vAp.y * 0.05;
+
       distance = GetDistance (x1, y1, x2, y2);
     } while(distance < m_R);
+
+    std::ostringstream oss;
+    for (std::vector<double>::const_iterator i = deltas.begin(); i != deltas.end(); ++i){
+      oss << *i << ",";
+    }
+
+    NS_LOG_INFO (oss.str());
 
     return stats;
   }

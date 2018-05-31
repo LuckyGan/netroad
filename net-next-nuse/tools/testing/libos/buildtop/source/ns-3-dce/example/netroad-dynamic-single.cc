@@ -20,8 +20,12 @@ NodeContainer staNodes;
 NetDeviceContainer ap2staDevs;
 ApplicationContainer container;
 
+std::string testName = "v10n1";
+
+bool manual = true;
 double velocity = 10;
-uint32_t nBusPerRoad = 3;
+uint32_t nBusPerRoad = 1;
+double queryInterval = 1.0;
 
 static void IfAssoc (Mac48Address address);
 static void IfMonitorSnifferRx	(Ptr<const Packet> packet,
@@ -35,47 +39,7 @@ static bool CompareAP (APStats a, APStats b) { return (a.m_rank > b.m_rank); }
 
 static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac48Address mac);
 
-static void GuidedAssociate(){
-	std::vector<APStats> stats;
-	for (uint32_t i = 0; i < ap2staDevs.GetN (); i++) {
-		APStats s = CalculateApStats(ap2staDevs.Get(i), staNodes.Get(0));
-		if (s.m_time > 1 && s.m_throughput > 1000000) {
-			s.m_rank = s.m_throughput / m_B / 100 +  s.m_time;
-			stats.push_back(s);
-		}
-	}
-
-	std::sort (stats.begin(), stats.end(), CompareAP);
-
-	NS_LOG_INFO ("avalialbe");
-	for(uint32_t i=0; i<stats.size(); i++){
-		NS_LOG_INFO ("mac:" << stats[i].m_mac << ", thruput:" << stats[i].m_throughput << ", time:" << stats[i].m_time << ", rank:" << stats[i].m_rank);
-	}
-
-	if(ap.device == NULL){
-		uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
-		Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
-			aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
-		Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
-		return;
-	}
-
-	for(uint32_t i=0; i<stats.size(); i++){
-		if(stats[0].m_mac == ap.device->GetMac ()->GetAddress()) {
-			Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
-			return;
-		}
-	}
-
-	if (stats.size() > 0 && stats[0].m_mac != ap.device->GetMac ()->GetAddress()) {
-			uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
-
-			Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
-				aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
-	}
-
-	Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
-}
+static void GuidedAssociate();
 
 int main(int argc, char* argv[]){
 
@@ -85,7 +49,6 @@ int main(int argc, char* argv[]){
 	Packet::EnablePrinting ();
 	uint32_t nApsH = nBusPerRoad;
 	uint32_t nAps = nApsH;
-	bool manual = true;
 
   CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -130,11 +93,12 @@ int main(int argc, char* argv[]){
 	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
 	mobility.Install(apNodes);
 
-	for(uint32_t i = 0; i < nApsH; i ++) {
-		SetPositionVelocity(apNodesH.Get(i), Vector(i * 420 / nBusPerRoad, 210, 0), Vector(velocity, 0, 0));
-		RegisterCourseChangeCallback(apNodesH.Get(i), MakeCallback(&CourseChanged));
-		Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, apNodesH.Get(i));
-	}
+	SetPositionVelocity(apNodesH.Get(0), Vector(100, 210, 0), Vector(velocity, 0, 0));
+	// for(uint32_t i = 0; i < nApsH; i ++) {
+	// 	SetPositionVelocity(apNodesH.Get(i), Vector(i * 420 / nBusPerRoad, 210, 0), Vector(velocity, 0, 0));
+	// 	RegisterCourseChangeCallback(apNodesH.Get(i), MakeCallback(&CourseChanged));
+	// 	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, apNodesH.Get(i));
+	// }
 
   NS_LOG_INFO ("install stack");
 
@@ -176,7 +140,7 @@ int main(int argc, char* argv[]){
 		sw2apDevs.Add(p2pDevs.Get(1));
   }
 
-  p2p.EnablePcapAll ("netroad-dynamic-single-p2p");
+  // p2p.EnablePcapAll ("netroad-dynamic-single-p2p");
 
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default();
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
@@ -222,7 +186,7 @@ int main(int argc, char* argv[]){
 	}
 
 	for(uint32_t i = 0; i < 1; i++) {
-		wifiPhy.Set("ChannelNumber", UintegerValue(6));
+		wifiPhy.Set("ChannelNumber", UintegerValue(1));
 		sta2apDevs.Add(wifi.Install(wifiPhy, wifiMac, staNodes.Get(0)));
 
 		Ptr<WifiNetDevice> wifiDev = DynamicCast<WifiNetDevice> (sta2apDevs.Get (i));
@@ -232,7 +196,7 @@ int main(int argc, char* argv[]){
 	RegisterAssocCallback(sta2apDevs.Get(0), MakeCallback(&IfAssoc));
 	// RegisterMonitorSnifferRxCallback(sta2apDevs.Get(0), MakeCallback(&IfMonitorSnifferRx));
 
-	wifiPhy.EnablePcapAll("netroad-dynamic-single-wifi", false);
+	wifiPhy.EnablePcap(testName, sta2apDevs);
 
   NS_LOG_INFO ("assign ip");
 
@@ -300,7 +264,7 @@ int main(int argc, char* argv[]){
 	sender = DynamicCast<BulkSendApplication> (container.Get (0));
 
 	if(manual) {
-		Simulator::Schedule (Seconds (2.0), &GuidedAssociate);
+		Simulator::Schedule (Seconds (queryInterval), &GuidedAssociate);
 	}
 
 
@@ -334,7 +298,7 @@ IfAssoc (Mac48Address address) {
 
 static void
 IfMonitorSnifferRx	(Ptr<const Packet> packet, uint16_t channelFreqMhz, uint16_t channelNumber, uint32_t rate, 	bool isShortPreamble, double signalDbm, double noiseDbm) {
-	NS_LOG_INFO ("noise" << noiseDbm);
+	NS_LOG_INFO ("signalDbm:" << signalDbm);
 }
 
 static uint32_t getIndexByMac (const std::vector<struct APInfo>& aps, const Mac48Address mac) {
@@ -359,4 +323,48 @@ static void CheckHorizonPosition(Ptr<Node> node){
 		SetPositionVelocity(node, Vector3D (0, 210, 0), Vector(velocity, 0, 0));
 	}
 	Simulator::Schedule (Seconds (1.0), &CheckHorizonPosition, node);
+}
+
+static void GuidedAssociate() {
+	std::vector<APStats> stats;
+	for (uint32_t i = 0; i < ap2staDevs.GetN (); i++) {
+		APStats s = CalculateApStats(ap2staDevs.Get(i), staNodes.Get(0));
+		if (s.m_time > 1 && s.m_throughput > 1000000) {
+			s.m_rank = s.m_throughput / m_B / 100 +  s.m_time;
+			// s.m_rank = s.m_throughput / m_B / 100 + s.m_time / 0.05;
+			// s.m_rank = s.m_throughput;
+			stats.push_back(s);
+		}
+	}
+
+	std::sort (stats.begin(), stats.end(), CompareAP);
+
+	NS_LOG_INFO ("avalialbe");
+	for(uint32_t i=0; i<stats.size(); i++){
+		NS_LOG_INFO ("mac:" << stats[i].m_mac << ", thruput:" << stats[i].m_throughput << ", time:" << stats[i].m_time << ", rank:" << stats[i].m_rank);
+	}
+
+	if(ap.device == NULL){
+		uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
+		Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
+			aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
+		Simulator::Schedule (Seconds (queryInterval), &GuidedAssociate);
+		return;
+	}
+
+	for(uint32_t i=0; i<stats.size(); i++){
+		if(stats[0].m_mac == ap.device->GetMac ()->GetAddress()) {
+			Simulator::Schedule (Seconds (queryInterval), &GuidedAssociate);
+			return;
+		}
+	}
+
+	if (stats.size() > 0 && stats[0].m_mac != ap.device->GetMac ()->GetAddress()) {
+			uint32_t newIdx = getIndexByMac(aps, stats[0].m_mac);
+
+			Simulator::ScheduleWithContext(staNodes.Get (0)->GetId (), Seconds(0.5), &StaWifiMac::SetNewAssociation, staWifiMac,
+				aps[newIdx].device->GetMac ()->GetAddress(), aps[newIdx].device->GetPhy ()->GetChannelNumber ());
+	}
+
+	Simulator::Schedule (Seconds (queryInterval), &GuidedAssociate);
 }
